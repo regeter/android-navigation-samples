@@ -24,10 +24,14 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.WindowManager
+import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import com.example.navigationapidemo.CustomizationPanelsDelegate.logDebugInfo
+import com.google.android.libraries.navigation.CustomRoutesOptions
+import com.google.android.libraries.navigation.DisplayOptions
 import com.google.android.libraries.navigation.NavigationApi
 import com.google.android.libraries.navigation.NavigationApi.NavigatorListener
 import com.google.android.libraries.navigation.Navigator
@@ -37,7 +41,8 @@ import com.google.android.libraries.navigation.SupportNavigationFragment
 import com.google.android.libraries.navigation.Waypoint
 import com.google.android.libraries.navigation.Waypoint.UnsupportedPlaceIdException
 import com.google.android.libraries.places.api.model.Place
-import java.lang.Exception
+import com.google.common.collect.Lists
+
 
 /**
  * This activity shows a simple Navigation API implementation using a Navigation fragment and using
@@ -52,6 +57,7 @@ class NavFragmentActivity : AppCompatActivity() {
 
   private lateinit var navFragment: SupportNavigationFragment
   private var navInfoDisplayFragment: Fragment? = null
+  private lateinit var buttonContainer: LinearLayout
 
   @SuppressLint("MissingPermission") // TODO: requestPermissions(...) in here or earlier
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -73,8 +79,69 @@ class NavFragmentActivity : AppCompatActivity() {
 
     // Register some example listeners for navigation events.
     registerNavigationListeners()
-
     initializeNavigationApi()
+
+    buttonContainer = findViewById(R.id.button_container)
+
+    // Define button configurations
+    val buttonConfigs = listOf(
+      ButtonConfig("Navigate Harrisburg PA") { customNavigate(Waypoint.builder().setLatLng(40.305301, -76.888941).build()) },
+      ButtonConfig("Enable Nav UI") { navFragment.setNavigationUiEnabled(true) },
+      ButtonConfig("Disable Nav UI") { navFragment.setNavigationUiEnabled(false) },
+      ButtonConfig("Enable Recenter") { navFragment.setRecenterButtonEnabled(true) },
+      ButtonConfig("Disable Recenter") { navFragment.setRecenterButtonEnabled(false) },
+      ButtonConfig("Follow Location") { followMyLocation(1) },
+      ButtonConfig("Unfollow Location") { followMyLocation(0) }
+    )
+
+    // Add buttons dynamically
+    buttonConfigs.forEach { config ->
+      addButton(config)
+    }
+  }
+
+  private fun addButton(config: ButtonConfig) {
+    val button = Button(this, null, 0, R.style.SmallButton).apply {
+      text = config.text
+      setOnClickListener {
+        showToast(config.text)
+        config.action()
+      }
+    }
+
+    buttonContainer.addView(button)
+  }
+
+  // Helper method for following location
+  private fun followMyLocation(mode: Int) {
+    withMapAsync {
+      navFragment.getMapAsync { googleMap ->
+        googleMap.followMyLocation(mode)
+      }
+    }
+  }
+
+  private fun customNavigate(waypoint: Waypoint) {
+
+    val routesApiToken = // From Routes API
+      "CuICCvEBMu4BGtIBClYCFhJwvWg6RhUI66YQ3LWSAbON2wyE-dAMkoois5rXCNyDgArtsdDRngT-pvrGngSt3-eaoAS6sO6coAT9r7G38BKCxrm38BKs5ye28R3v7LIChI9hABI0cGPaOLHInaNYaOJy8I1LuqL2nWFOIkUrmg9FosKwIrTlm3zZ4j4lmsJEc6rtbkdQaFNEShoXAK4FGPECKcgJy36KAoGSAp3ABAE6-AMqDRQBWwICbHVqch0DHmwyBQQBAwEDPU_XOj9FTc4zP0iixLziiJOYrO8BIhd1c2prWnVfOEw4bWg2clFQcHBERndRWRAFGlMKUQoYCg0KAggBEQAAAAAAgGZAEYxs5_sRtexAEhYIABADEAYQExASGAJCBBoCCAVKAggBIhsKF3Vzamtab0s3Q3NtaDZyUVBwcERGd1FZcAEoASIVANvZE2uX7GzTKm886OB3Vc1noJwuGhgKCg1nr94UFRnJa8oSCg34r94UFazIa8o"
+    val destinations = Lists.newArrayList<Waypoint>()
+    destinations.add(waypoint)
+
+    val customRoutesOptions = CustomRoutesOptions.builder()
+      .setRouteToken(routesApiToken)
+      .setTravelMode(CustomRoutesOptions.TravelMode.DRIVING)
+      .build()
+
+    withNavigatorAsync {
+      // Request a route from the Navigator using the provided destinations and options.
+      val displayOptions = DisplayOptions()
+      val routeStatusFuture = navigator.setDestinations(
+        destinations,
+        customRoutesOptions,
+        displayOptions
+      )
+    }
   }
 
   /**
@@ -86,8 +153,8 @@ class NavFragmentActivity : AppCompatActivity() {
   private fun withMapAsync(block: InitializedMapScope.() -> Unit) {
     navFragment.getMapAsync { map ->
       object : InitializedMapScope {
-          override val map = map
-        }
+        override val map = map
+      }
         .block()
     }
   }
@@ -128,37 +195,39 @@ class NavFragmentActivity : AppCompatActivity() {
               // and is been enabled to access the Navigation API
               showToast(
                 "Error loading Navigation API: Your API key is " +
-                  "invalid or not authorized to use Navigation."
+                        "invalid or not authorized to use Navigation."
               )
             }
             NavigationApi.ErrorCode.TERMS_NOT_ACCEPTED -> {
               showToast(
                 "Error loading Navigation API: User did not " +
-                  "accept the Navigation Terms of Use."
+                        "accept the Navigation Terms of Use."
               )
             }
             else -> showToast("Error loading Navigation API: $errorCode")
           }
         }
-      },
+      }
     )
 
     withMapAsync {
+      navFragment.getMapAsync { googleMap ->
         CustomizationPanelsDelegate.setUpCameraPerspectiveSpinner(
           this@NavFragmentActivity,
-          map::followMyLocation,
+          map::followMyLocation
         )
         // The logic below simply helps keep the UI in tune with the underlying SDK
         // state.
         CustomizationPanelsDelegate.registerOnCameraFollowLocationCallback(
           this@NavFragmentActivity,
-          map,
+          googleMap
         )
 
         CustomizationPanelsDelegate.registerOnNavigationUiChangedListener(
           this@NavFragmentActivity,
-          navFragment::addOnNavigationUiChangedListener,
+          navFragment::addOnNavigationUiChangedListener
         )
+      }
     }
   }
 
@@ -285,7 +354,6 @@ class NavFragmentActivity : AppCompatActivity() {
   fun switchCustomizationUIVisibility(unused: MenuItem?) {
     CustomizationPanelsDelegate.switchCustomizationUiVisibility(this)
   }
-
   ////////////////////////////////////////////////////////////////////////////////////////////////
   //
   // OnClick listeners for various buttons in the customization panels.
@@ -293,7 +361,14 @@ class NavFragmentActivity : AppCompatActivity() {
   ////////////////////////////////////////////////////////////////////////////////////////////////
   /** Toggles whether the Navigation UI is enabled. */
   fun toggleNavigationUiEnabled(unused: View?) {
+    showToast(
+      "toggleNavigationUiEnabled"
+    )
     CustomizationPanelsDelegate.toggleNavigationUiEnabled(this, navFragment::setNavigationUiEnabled)
+    navFragment.setNavigationUiEnabled(false)
+    withNavigatorAsync {
+      navigator.stopGuidance()
+    }
   }
 
   /** Toggles navigation forwarding (e.g. for 2-wheeler projection). */
@@ -303,7 +378,7 @@ class NavFragmentActivity : AppCompatActivity() {
         CustomizationPanelsDelegate.toggleNavForwarding(
           this@NavFragmentActivity,
           navigator,
-          navInfoDisplayFragment,
+          navInfoDisplayFragment
         )
     }
   }
@@ -326,7 +401,7 @@ class NavFragmentActivity : AppCompatActivity() {
   fun toggleTripProgressBarUi(unused: View?) {
     CustomizationPanelsDelegate.toggleTripProgressBarUI(
       this,
-      navFragment::setTripProgressBarEnabled,
+      navFragment::setTripProgressBarEnabled
     )
   }
 
@@ -338,6 +413,7 @@ class NavFragmentActivity : AppCompatActivity() {
 
   private fun showToast(errorMessage: String) {
     Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
+    Log.i("MyTag", errorMessage);
   }
 
   override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -364,7 +440,9 @@ class NavFragmentActivity : AppCompatActivity() {
   }
 
   companion object {
+
     const val TAG = "NavFragmentActivity"
     const val PLACE_PICKER_REQUEST = 1
   }
+  data class ButtonConfig(val text: String, val action: () -> Unit)
 }

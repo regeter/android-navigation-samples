@@ -126,5 +126,5 @@ secrets {
     // 1. Open the root project's local.properties file
     // 2. Add this line, where YOUR_API_KEY is your API key:
     //        MAPS_API_KEY=YOUR_API_KEY
-    defaultPropertiesFileName 'local.defaults.properties'
+    defaultPropertiesFileName 'local.properties'
 }

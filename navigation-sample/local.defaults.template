@@ -1,0 +1,4 @@
+# Copy the this files content over to your actual "local.properties".
+# Replace the YOUR_API_KEY with your actual Google Maps API Key.
+
+MAPS_API_KEY=YOUR_API_KEY
