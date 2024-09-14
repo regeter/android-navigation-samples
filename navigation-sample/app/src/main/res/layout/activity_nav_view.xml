@@ -49,4 +49,16 @@
         android:scrollbars="none">
         <include layout="@layout/control_toggles_container" />
     </ScrollView>
+
+    <LinearLayout
+        android:id="@+id/button_container"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentBottom="true"
+        android:layout_margin="12dp"
+        android:orientation="vertical">
+        <!-- Buttons will be added here programmatically -->
+    </LinearLayout>
+
 </RelativeLayout>

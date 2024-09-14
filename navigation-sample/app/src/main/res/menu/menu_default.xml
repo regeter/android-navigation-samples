@@ -22,6 +22,10 @@
         android:onClick="showPlacePickerForDestination"
         android:title="@string/set_destination_menu_option"
         app:showAsAction="always|withText"/>
-    <item android:title="@string/switch_customizations_ui_prompt"
-        android:onClick="switchCustomizationUIVisibility"/>
+    <item
+        android:id="@+id/switch_customizations_button"
+        android:title="@string/switch_customizations_ui_prompt"
+        android:icon="@drawable/ic_round_menu"
+        android:onClick="switchCustomizationUIVisibility"
+        app:showAsAction="always"/>
 </menu>
