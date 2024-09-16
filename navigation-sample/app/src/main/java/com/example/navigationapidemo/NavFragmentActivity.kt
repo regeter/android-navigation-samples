@@ -83,11 +83,14 @@ class NavFragmentActivity : AppCompatActivity() {
 
     buttonContainer = findViewById(R.id.button_container)
 
+
+
     // Define button configurations
     val buttonConfigs = listOf(
       ButtonConfig("Navigate Harrisburg PA") { customNavigate(Waypoint.builder().setLatLng(40.305301, -76.888941).build()) },
-      ButtonConfig("Enable Nav UI") { navFragment.setNavigationUiEnabled(true) },
-      ButtonConfig("Disable Nav UI") { navFragment.setNavigationUiEnabled(false) },
+      ButtonConfig("startGuidance") { withNavigatorAsync {navigator.startGuidance() }},
+      ButtonConfig("stopGuidance") { withNavigatorAsync {navigator.stopGuidance() }},
+      ButtonConfig("clearDestinations") { withNavigatorAsync {navigator.clearDestinations() }},
       ButtonConfig("Enable Recenter") { navFragment.setRecenterButtonEnabled(true) },
       ButtonConfig("Disable Recenter") { navFragment.setRecenterButtonEnabled(false) },
       ButtonConfig("Follow Location") { followMyLocation(1) },
