@@ -30,6 +30,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import com.example.navigationapidemo.CustomizationPanelsDelegate.logDebugInfo
+import com.google.android.gms.maps.model.LatLng
 import com.google.android.libraries.navigation.CustomRoutesOptions
 import com.google.android.libraries.navigation.DisplayOptions
 import com.google.android.libraries.navigation.NavigationApi
@@ -91,6 +92,8 @@ class NavFragmentActivity : AppCompatActivity() {
       ButtonConfig("startGuidance") { withNavigatorAsync {navigator.startGuidance() }},
       ButtonConfig("stopGuidance") { withNavigatorAsync {navigator.stopGuidance() }},
       ButtonConfig("clearDestinations") { withNavigatorAsync {navigator.clearDestinations() }},
+      ButtonConfig("simulator.setUserLocation") { withNavigatorAsync {navigator.simulator.setUserLocation(
+        LatLng(35.013836,-89.890594)) }}, //JB Hunt, TN
       ButtonConfig("Enable Recenter") { navFragment.setRecenterButtonEnabled(true) },
       ButtonConfig("Disable Recenter") { navFragment.setRecenterButtonEnabled(false) },
       ButtonConfig("Follow Location") { followMyLocation(1) },
@@ -126,8 +129,8 @@ class NavFragmentActivity : AppCompatActivity() {
 
   private fun customNavigate(waypoint: Waypoint) {
 
-    val routesApiToken = // From Routes API
-      "CuICCvEBMu4BGtIBClYCFhJwvWg6RhUI66YQ3LWSAbON2wyE-dAMkoois5rXCNyDgArtsdDRngT-pvrGngSt3-eaoAS6sO6coAT9r7G38BKCxrm38BKs5ye28R3v7LIChI9hABI0cGPaOLHInaNYaOJy8I1LuqL2nWFOIkUrmg9FosKwIrTlm3zZ4j4lmsJEc6rtbkdQaFNEShoXAK4FGPECKcgJy36KAoGSAp3ABAE6-AMqDRQBWwICbHVqch0DHmwyBQQBAwEDPU_XOj9FTc4zP0iixLziiJOYrO8BIhd1c2prWnVfOEw4bWg2clFQcHBERndRWRAFGlMKUQoYCg0KAggBEQAAAAAAgGZAEYxs5_sRtexAEhYIABADEAYQExASGAJCBBoCCAVKAggBIhsKF3Vzamtab0s3Q3NtaDZyUVBwcERGd1FZcAEoASIVANvZE2uX7GzTKm886OB3Vc1noJwuGhgKCg1nr94UFRnJa8oSCg34r94UFazIa8o"
+    val routesApiToken =
+      "CukCCvABMu0BGtIBClYCFhJwvWg6RhUI66YQ3LWSAbON2wyE-dAMkoois5rXCNyDgArtsdDRngT-pvrGngSt3-eaoAS6sO6coAT9r7G38BKCxrm38BKs5ye28R3v7LIChI9hABI0cGPaOLHInaNYaOJy8I1LuqL2nWFOIkUrmg9FosKwIrTlm3zZ4j4lmsJEc6rtbkdQaFNEShoXAK4FGPECKcgJy36KAoGSAp3ABAE6-AMqDRQBWwICbHVqch0DHmwyBQQBAwEDPU_XOj9FTc4zP0i9iZSI7K67jqoBIhZoNjd0WnVxbktZYXo2clFQbDR1eUdBEAUaWwpZEhYIABADEAYQExASGAJCBBoCCAVKAggBIhoKFmhxN3Racnl5RzRhejZyUVBsNHV5R0FwASgEMiF0cnVja2luZzo6c2VtaS10cmFpbGVyLXRydWNrLXNvZnQiFQDb2RNrjRsBd7HiCpHcL9N9wLrFTxIeIhx0cnVja2luZzo6c2VtaS10cmFpbGVyLXRydWNrGhgKCg1nr94UFRnJa8oSCg34r94UFazIa8o"
     val destinations = Lists.newArrayList<Waypoint>()
     destinations.add(waypoint)
 
@@ -144,6 +147,12 @@ class NavFragmentActivity : AppCompatActivity() {
         customRoutesOptions,
         displayOptions
       )
+
+      routeStatusFuture.setOnResultListener { result ->
+        result?.let { status ->
+          Log.i(TAG, "Route Status: $status")
+        } ?: Log.w(TAG, "Route Status is null")
+      }
     }
   }
 
