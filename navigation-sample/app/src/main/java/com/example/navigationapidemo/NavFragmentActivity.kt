@@ -20,11 +20,13 @@ import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.view.Gravity
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -60,6 +62,11 @@ class NavFragmentActivity : AppCompatActivity() {
   private var navInfoDisplayFragment: Fragment? = null
   private lateinit var buttonContainer: LinearLayout
 
+  private val  routesApiTruckToken =
+    "CukCCvABMu0BGtIBClYCFhJwvWg6RhUI66YQ3LWSAbON2wyE-dAMkoois5rXCNyDgArtsdDRngT-pvrGngSt3-eaoAS6sO6coAT9r7G38BKCxrm38BKs5ye28R3v7LIChI9hABI0cGPaOLHInaNYaOJy8I1LuqL2nWFOIkUrmg9FosKwIrTlm3zZ4j4lmsJEc6rtbkdQaFNEShoXAK4FGPECKcgJy36KAoGSAp3ABAE6-AMqDRQBWwICbHVqch0DHmwyBQQBAwEDPU_XOj9FTc4zP0i9iZSI7K67jqoBIhZoNjd0WnVxbktZYXo2clFQbDR1eUdBEAUaWwpZEhYIABADEAYQExASGAJCBBoCCAVKAggBIhoKFmhxN3Racnl5RzRhejZyUVBsNHV5R0FwASgEMiF0cnVja2luZzo6c2VtaS10cmFpbGVyLXRydWNrLXNvZnQiFQDb2RNrjRsBd7HiCpHcL9N9wLrFTxIeIhx0cnVja2luZzo6c2VtaS10cmFpbGVyLXRydWNrGhgKCg1nr94UFRnJa8oSCg34r94UFazIa8o"
+  private val  routesApiPlainToken =
+    "CuICCvEBMu4BGtIBClYCFhJwvWg6RhUI66YQ3LWSAbON2wyE-dAMkoois5rXCNyDgArtsdDRngT-pvrGngSt3-eaoAS6sO6coAT9r7G38BKCxrm38BKs5ye28R3v7LIChI9hABI0cGPaOLHInaNYaOJy8I1LuqL2nWFOIkUrmg9FosKwIrTlm3zZ4j4lmsJEc6rtbkdQaFNEShoXAK4FGPECKcgJy36KAoGSAp3ABAE6-AMqDRQBWwICbHVqch0DHmwyBQQBAwEDPU_XOj9FTc4zP0iixLziiJOYrO8BIhd1c2prWnVfOEw4bWg2clFQcHBERndRWRAFGlMKUQoYCg0KAggBEQAAAAAAgGZAEYxs5_sRtexAEhYIABADEAYQExASGAJCBBoCCAVKAggBIhsKF3Vzamtab0s3Q3NtaDZyUVBwcERGd1FZcAEoASIVANvZE2uX7GzTKm886OB3Vc1noJwuGhgKCg1nr94UFRnJa8oSCg34r94UFazIa8o"
+
   @SuppressLint("MissingPermission") // TODO: requestPermissions(...) in here or earlier
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -88,7 +95,9 @@ class NavFragmentActivity : AppCompatActivity() {
 
     // Define button configurations
     val buttonConfigs = listOf(
-      ButtonConfig("Navigate Harrisburg PA") { customNavigate(Waypoint.builder().setLatLng(40.305301, -76.888941).build()) },
+      ButtonConfig("Truck: Harrisburg PA") { customNavigate(Waypoint.builder().setLatLng(40.305301, -76.888941).build(), routesApiTruckToken) },
+      ButtonConfig("Plain: Harrisburg PA") { customNavigate(Waypoint.builder().setLatLng(40.305301, -76.888941).build(), routesApiPlainToken) },
+      ButtonConfig("No Token: Harrisburg PA") { customNavigate(Waypoint.builder().setLatLng(40.305301, -76.888941).build()) },
       ButtonConfig("startGuidance") { withNavigatorAsync {navigator.startGuidance() }},
       ButtonConfig("stopGuidance") { withNavigatorAsync {navigator.stopGuidance() }},
       ButtonConfig("clearDestinations") { withNavigatorAsync {navigator.clearDestinations() }},
@@ -113,6 +122,13 @@ class NavFragmentActivity : AppCompatActivity() {
         showToast(config.text)
         config.action()
       }
+      layoutParams = LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams.WRAP_CONTENT,
+        LinearLayout.LayoutParams.WRAP_CONTENT
+      ).apply {
+        gravity = Gravity.END
+        setMargins(0, -8, 0, -8)
+      }
     }
 
     buttonContainer.addView(button)
@@ -127,15 +143,13 @@ class NavFragmentActivity : AppCompatActivity() {
     }
   }
 
-  private fun customNavigate(waypoint: Waypoint) {
+  private fun customNavigate(waypoint: Waypoint, routeToken: String? = "") {
 
-    val routesApiToken =
-      "CukCCvABMu0BGtIBClYCFhJwvWg6RhUI66YQ3LWSAbON2wyE-dAMkoois5rXCNyDgArtsdDRngT-pvrGngSt3-eaoAS6sO6coAT9r7G38BKCxrm38BKs5ye28R3v7LIChI9hABI0cGPaOLHInaNYaOJy8I1LuqL2nWFOIkUrmg9FosKwIrTlm3zZ4j4lmsJEc6rtbkdQaFNEShoXAK4FGPECKcgJy36KAoGSAp3ABAE6-AMqDRQBWwICbHVqch0DHmwyBQQBAwEDPU_XOj9FTc4zP0i9iZSI7K67jqoBIhZoNjd0WnVxbktZYXo2clFQbDR1eUdBEAUaWwpZEhYIABADEAYQExASGAJCBBoCCAVKAggBIhoKFmhxN3Racnl5RzRhejZyUVBsNHV5R0FwASgEMiF0cnVja2luZzo6c2VtaS10cmFpbGVyLXRydWNrLXNvZnQiFQDb2RNrjRsBd7HiCpHcL9N9wLrFTxIeIhx0cnVja2luZzo6c2VtaS10cmFpbGVyLXRydWNrGhgKCg1nr94UFRnJa8oSCg34r94UFazIa8o"
     val destinations = Lists.newArrayList<Waypoint>()
     destinations.add(waypoint)
 
     val customRoutesOptions = CustomRoutesOptions.builder()
-      .setRouteToken(routesApiToken)
+      .setRouteToken(routeToken)
       .setTravelMode(CustomRoutesOptions.TravelMode.DRIVING)
       .build()
 
@@ -150,8 +164,8 @@ class NavFragmentActivity : AppCompatActivity() {
 
       routeStatusFuture.setOnResultListener { result ->
         result?.let { status ->
-          Log.i(TAG, "Route Status: $status")
-        } ?: Log.w(TAG, "Route Status is null")
+          showToast("Route Status: $status")
+        } ?: showToast( "Route Status is null")
       }
     }
   }
