@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.example.navigationapidemo
+package com.example.regeternaviapidemo
 
 import android.graphics.Color
 import android.os.Bundle

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.example.navigationapidemo
+package com.example.regeternaviapidemo
 
 import android.content.Intent
 import android.os.Bundle

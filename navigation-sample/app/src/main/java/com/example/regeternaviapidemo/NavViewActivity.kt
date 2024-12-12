@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.example.navigationapidemo
+package com.example.regeternaviapidemo
 
 import android.annotation.SuppressLint
 import android.content.Intent
@@ -28,7 +28,7 @@ import android.view.WindowManager
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
-import com.example.navigationapidemo.CustomizationPanelsDelegate.logDebugInfo
+import com.example.regeternaviapidemo.CustomizationPanelsDelegate.logDebugInfo
 import com.google.android.libraries.navigation.NavigationApi
 import com.google.android.libraries.navigation.NavigationApi.NavigatorListener
 import com.google.android.libraries.navigation.NavigationView

@@ -14,14 +14,10 @@
  * limitations under the License.
  */
 
-package com.example.navigationapidemo
+package com.example.regeternaviapidemo
 
-import com.google.android.gms.maps.GoogleMap
+import com.bumptech.glide.annotation.GlideModule
+import com.bumptech.glide.module.AppGlideModule
 
-/**
- * Used in [NavViewActivity.withMapAsync] and [NavFragmentActivity.withMapAsync] to provide
- * asynchronous access to the Google Map.
- */
-interface InitializedMapScope {
-  val map: GoogleMap
-}
+/** An AppGlideModule implementation for Glide's Generated APIs */
+@GlideModule class SampleAppGlideModule : AppGlideModule()

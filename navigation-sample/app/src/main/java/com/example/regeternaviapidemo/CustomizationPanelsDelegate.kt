@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.example.navigationapidemo
+package com.example.regeternaviapidemo
 
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -24,7 +24,6 @@ import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.Spinner
 import android.widget.ToggleButton
 import androidx.appcompat.app.AppCompatActivity
@@ -100,16 +99,18 @@ internal object CustomizationPanelsDelegate {
   }
 
   /** Switches the visibility of the UI of the customization panels and the toggle buttons. */
-  fun switchCustomizationUiVisibility(activity: Activity) {
-    val toggleButtons = activity.findViewById<LinearLayout>(R.id.control_toggles_container)
-    val panelsWrapper = activity.findViewById<ScrollView>(R.id.control_panels_scroll)
+fun switchCustomizationUiVisibility(activity: Activity) {
+    val toggleButtons = activity.findViewById<View>(R.id.control_toggles_container)
+    val panelsWrapper = activity.findViewById<View>(R.id.control_panels_scroll)
+    val customButtonContainer = activity.findViewById<View>(R.id.button_container)
 
     // Toggle visibility of buttons and the element that wraps all the corresponding customization
     // panels.
     val visibility = if (toggleButtons.visibility == View.VISIBLE) View.GONE else View.VISIBLE
-    toggleButtons.visibility = visibility
-    panelsWrapper.visibility = visibility
-  }
+    toggleButtons?.visibility = visibility
+    panelsWrapper?.visibility = visibility
+    customButtonContainer?.visibility = visibility
+}
 
   /**
    * Sets up the data for the night mode spinner.
