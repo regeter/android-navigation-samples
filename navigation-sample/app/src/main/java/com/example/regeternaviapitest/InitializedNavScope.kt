@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-package com.example.regeternaviapidemo
+package com.example.regeternaviapitest
 
-import com.google.android.gms.maps.GoogleMap
+import com.google.android.libraries.navigation.Navigator
 
 /**
- * Used in [NavViewActivity.withMapAsync] and [NavFragmentActivity.withMapAsync] to provide
- * asynchronous access to the Google Map.
+ * Used with in [NavViewActivity.withNavigatorAsync] and [NavFragmentActivity.withNavigatorAsync] to
+ * provide asynchronous access to the Navigator.
  */
-interface InitializedMapScope {
-  val map: GoogleMap
-}
+open class InitializedNavScope(val navigator: Navigator)
+
+typealias InitializedNavRunnable = InitializedNavScope.() -> Unit

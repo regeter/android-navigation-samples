@@ -15,7 +15,7 @@
  */
 
 // com/example/navigationapidemo/NavFragmentActivity.kt
-package com.example.regeternaviapidemo
+package com.example.regeternaviapitest
 
 import android.annotation.SuppressLint
 import android.content.Intent
@@ -31,7 +31,7 @@ import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
-import com.example.regeternaviapidemo.CustomizationPanelsDelegate.logDebugInfo
+import com.example.regeternaviapitest.CustomizationPanelsDelegate.logDebugInfo
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.libraries.navigation.AlternateRoutesStrategy
 import com.google.android.libraries.navigation.CustomRoutesOptions

@@ -18,7 +18,7 @@
 <!--AndroidManifest.xml-->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.example.regeternaviapidemo">
+    package="com.example.regeternaviapitest">
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
@@ -42,7 +42,7 @@
             android:value="${MAPS_API_KEY}" />
 
         <activity
-            android:name="com.example.regeternaviapidemo.MainActivity"
+            android:name="com.example.regeternaviapitest.MainActivity"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.example.navigationapidemo.intent.action.MAIN" />
@@ -50,23 +50,23 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="com.example.regeternaviapidemo.NavViewActivity"
+            android:name="com.example.regeternaviapitest.NavViewActivity"
             android:exported="false"/>
         <activity
-            android:name="com.example.regeternaviapidemo.NavFragmentActivity"
+            android:name="com.example.regeternaviapitest.NavFragmentActivity"
             android:exported="false"/>
         <activity
-            android:name="com.example.regeternaviapidemo.SwappingMapAndNavActivity"
+            android:name="com.example.regeternaviapitest.SwappingMapAndNavActivity"
             android:exported="false"/>
-        <activity android:name="com.example.regeternaviapidemo.SplashScreenActivity"
+        <activity android:name="com.example.regeternaviapitest.SplashScreenActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name="com.example.regeternaviapidemo.PlacePickerActivity" android:exported="false"/>
-        <service android:name="com.example.regeternaviapidemo.NavInfoReceivingService"
+        <activity android:name="com.example.regeternaviapitest.PlacePickerActivity" android:exported="false"/>
+        <service android:name="com.example.regeternaviapitest.NavInfoReceivingService"
             android:exported="false"/>
     </application>
 

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.example.regeternaviapidemo
+package com.example.regeternaviapitest
 
 import android.content.Intent
 import android.os.Bundle

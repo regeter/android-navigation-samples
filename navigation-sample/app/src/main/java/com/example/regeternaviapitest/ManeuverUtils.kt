@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.example.regeternaviapidemo
+package com.example.regeternaviapitest
 
 import com.google.android.libraries.mapsplatform.turnbyturn.model.Maneuver
 import com.google.android.libraries.mapsplatform.turnbyturn.model.StepInfo

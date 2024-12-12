@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.example.regeternaviapidemo
+package com.example.regeternaviapitest
 
 import android.annotation.SuppressLint
 import android.content.Intent
@@ -28,7 +28,15 @@ import android.view.WindowManager
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
-import com.example.regeternaviapidemo.CustomizationPanelsDelegate.logDebugInfo
+import android.os.Handler
+import android.os.Looper
+import android.view.Gravity
+import android.widget.Button
+import android.widget.LinearLayout
+import kotlinx.coroutines.*
+import com.google.android.libraries.navigation.ListenableResultFuture
+import com.example.regeternaviapitest.CustomizationPanelsDelegate.logDebugInfo
+import com.example.regeternaviapitest.NavFragmentActivity.ButtonConfig
 import com.google.android.libraries.navigation.NavigationApi
 import com.google.android.libraries.navigation.NavigationApi.NavigatorListener
 import com.google.android.libraries.navigation.NavigationView
@@ -39,6 +47,7 @@ import com.google.android.libraries.navigation.Waypoint
 import com.google.android.libraries.navigation.Waypoint.UnsupportedPlaceIdException
 import com.google.android.libraries.places.api.model.Place
 import java.lang.Exception
+import java.util.concurrent.Executors
 
 /**
  * This activity shows a simple Navigation API implementation using a Navigation view and using the
@@ -48,11 +57,18 @@ private const val TAG = "NavViewActivity"
 private const val PLACE_PICKER_REQUEST = 1
 
 class NavViewActivity : AppCompatActivity() {
+  companion object {
+    private val routeCancellationExecutor = Executors.newSingleThreadExecutor()
+  }
   private lateinit var navView: NavigationView
   var navigatorScope: InitializedNavScope? = null
   var pendingNavActions = mutableListOf<InitializedNavRunnable>()
   private var arrivalListener: Navigator.ArrivalListener? = null
   private var routeChangedListener: Navigator.RouteChangedListener? = null
+  private var mPendingRoute: ListenableResultFuture<RouteStatus>? = null
+  private lateinit var buttonContainer: LinearLayout
+  private var cancellationJob: Job? = null
+  private val cancellationScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
   // Only used to demo the turn-by-turn nav forwarding feature.
   var navInfoDisplayFragment: Fragment? = null
@@ -79,6 +95,61 @@ class NavViewActivity : AppCompatActivity() {
     registerNavigationListeners()
 
     initializeNavigationApi()
+
+    buttonContainer = findViewById(R.id.button_container)
+
+    // Define button configurations
+    val buttonConfigs = listOf(
+      ButtonConfig("startGuidance") { withNavigatorAsync {navigator.startGuidance() }},
+      ButtonConfig("stopGuidance") { withNavigatorAsync {navigator.stopGuidance() }},
+      ButtonConfig("clearDestinations") { withNavigatorAsync {navigator.clearDestinations() }},
+      ButtonConfig("test") {
+        testRapidRouteChanges(resetFun = ::resetEtaTracking)
+      },
+      ButtonConfig("test Coroutine") {
+        testRapidRouteChanges(resetFun = ::resetEtaTrackingWithCoroutine)
+      },
+      ButtonConfig("test SingleThreadExecutor") {
+        testRapidRouteChanges(resetFun = ::resetEtaTrackingSingleThreadExecutor)
+      },
+      ButtonConfig("test Debounce") {
+        testRapidRouteChanges(resetFun = ::resetEtaTrackingDebounce)
+      },
+      ButtonConfig("Manual testRouteWithDelayCancellation") {
+        Log.d(TAG, "Manual testRouteWithDelayCancellation")
+        testRouteWithDelayCancellation(37.41433987, -122.077361, resetFun = ::resetEtaTracking)
+      },
+      ButtonConfig("Manual resetEtaTracking") {
+        Log.d(TAG, "Manual resetEtaTracking")
+        resetEtaTracking()
+      }
+    )
+
+    // Add buttons dynamically
+    buttonConfigs.forEach { config ->
+      addButton(config)
+    }
+
+
+  }
+
+  private fun addButton(config: ButtonConfig) {
+    val button = Button(this, null, 0, R.style.SmallButton).apply {
+      text = config.text
+      setOnClickListener {
+//        showToast(config.text)
+        config.action()
+      }
+      layoutParams = LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams.WRAP_CONTENT,
+        LinearLayout.LayoutParams.WRAP_CONTENT
+      ).apply {
+        gravity = Gravity.END
+        setMargins(0, -8, 0, -8)
+      }
+    }
+
+    buttonContainer.addView(button)
   }
 
   /**
@@ -250,6 +321,156 @@ class NavViewActivity : AppCompatActivity() {
     }
   }
 
+    private fun testRapidRouteChanges(resetFun: () -> Unit) {
+        Log.d(TAG, "testRapidRouteChanges")
+        // Multiple rapid starts
+        repeat(3) {
+            testRouteWithDelayCancellation(37.41433987, -122.077361, resetFun)
+            // Minimal delay between calls to increase race condition chance
+            Thread.sleep(100)
+        }
+        // Immediate cancel
+        resetFun()
+    }
+
+    private fun testRouteWithDelayCancellation(lat: Double, lng: Double, resetFun: () -> Unit) {
+        withNavigatorAsync {
+            val destination = Waypoint.builder()
+                .setLatLng(lat, lng)
+                .build()
+
+            Log.d(TAG, "Setting destination for cancel test")
+            mPendingRoute = navigator.setDestination(destination)
+            mPendingRoute?.setOnResultListener { code: RouteStatus ->
+                when (code) {
+                    RouteStatus.OK -> {
+                        Log.d(TAG, "Route set successfully, could call resumeEtaTracking")
+                    }
+
+                    else -> {
+                        Log.e(TAG, "Route setting failed with code: $code")
+                    }
+                }
+            }
+
+            // Schedule a cancellation after 5 seconds
+            Handler(Looper.getMainLooper()).postDelayed({
+                Log.d(TAG, "Executing reset after delay")
+                resetFun()
+            }, 5000)
+        }
+    }
+
+    private fun resetEtaTracking() {
+        Log.d(TAG, "Starting resetEtaTracking")
+
+        withNavigatorAsync {
+            navigator.stopGuidance()
+
+            try {
+                Log.d(TAG, "Attempting to cancel pending route")
+                mPendingRoute?.cancel(true)
+            } catch (e: Exception) {
+                Log.e(TAG, "Cancel pending route failed", e)
+            } finally {
+                mPendingRoute = null
+                Log.d(TAG, "Reset completed")
+            }
+            navigator.clearDestinations()
+        }
+    }
+
+    private fun resetEtaTrackingWithCoroutine() {
+        Log.d(TAG, "Starting resetEtaTrackingWithCoroutine")
+
+        // Capture and clear the pending route reference immediately
+        val routeToCancel = mPendingRoute
+        mPendingRoute = null
+
+        withNavigatorAsync {
+            navigator.stopGuidance()
+            Log.d(TAG, "Reset completed")
+
+
+            routeToCancel?.let { pendingRoute ->
+                CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+                    try {
+                        Log.d(TAG, "Starting async route cancellation")
+                        Log.d(
+                            TAG,
+                            "Route state - isDone: ${pendingRoute.isDone}, isCancelled: ${pendingRoute.isCancelled}"
+                        )
+
+                        if (!pendingRoute.isDone && !pendingRoute.isCancelled) {
+                            try {
+                                pendingRoute.cancel(true)
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Route cancellation failed", e)
+                            }
+                        }
+                        Log.d(TAG, "Async route cancellation completed")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Async route cancellation process failed", e)
+                    }
+                }
+            }
+            navigator.clearDestinations()
+        }
+    }
+
+    private fun resetEtaTrackingSingleThreadExecutor() {
+        Log.d(TAG, "Starting resetEtaTrackingSingleThreadExecutor")
+
+        // Capture and clear reference immediately
+        val routeToCancel = mPendingRoute
+        mPendingRoute = null
+
+        withNavigatorAsync {
+            navigator.stopGuidance()
+            navigator.clearDestinations()
+        }
+
+        // Queue cancellation on dedicated single thread
+        routeToCancel?.let { pendingRoute ->
+            routeCancellationExecutor.execute {
+                try {
+                    pendingRoute.cancel(true)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Route cancellation failed", e)
+                }
+            }
+        }
+    }
+
+    private fun resetEtaTrackingDebounce() {
+        Log.d(TAG, "Starting resetEtaTrackingDebounce")
+
+        val routeToCancel = mPendingRoute
+        mPendingRoute = null
+
+        withNavigatorAsync {
+            navigator.stopGuidance()
+
+            // Cancel previous pending cancellation
+            cancellationJob?.cancel()
+
+            // Start new debounced cancellation
+            cancellationJob = cancellationScope.launch {
+                delay(500) // Wait for 500ms for no subsequent cancels
+                routeToCancel?.let { pendingRoute ->
+                    try {
+                        Log.d(TAG, "pendingRoute.cancel(true)")
+                        pendingRoute.cancel(true)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Route cancellation failed", e)
+                    }
+                }
+            }
+            navigator.clearDestinations()
+        }
+    }
+
+
   override fun onSaveInstanceState(savedInstanceState: Bundle) {
     super.onSaveInstanceState(savedInstanceState)
 
@@ -300,7 +521,10 @@ class NavViewActivity : AppCompatActivity() {
       navigator.simulator?.unsetUserLocation()
       navigator.cleanup()
     }
+
     super.onDestroy()
+    routeCancellationExecutor.shutdown()
+    cancellationScope.cancel()
   }
 
   override fun onCreateOptionsMenu(menu: Menu): Boolean {

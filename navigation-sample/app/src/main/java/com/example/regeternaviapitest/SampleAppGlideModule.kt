@@ -14,14 +14,10 @@
  * limitations under the License.
  */
 
-package com.example.regeternaviapidemo
+package com.example.regeternaviapitest
 
-import com.google.android.libraries.navigation.Navigator
+import com.bumptech.glide.annotation.GlideModule
+import com.bumptech.glide.module.AppGlideModule
 
-/**
- * Used with in [NavViewActivity.withNavigatorAsync] and [NavFragmentActivity.withNavigatorAsync] to
- * provide asynchronous access to the Navigator.
- */
-open class InitializedNavScope(val navigator: Navigator)
-
-typealias InitializedNavRunnable = InitializedNavScope.() -> Unit
+/** An AppGlideModule implementation for Glide's Generated APIs */
+@GlideModule class SampleAppGlideModule : AppGlideModule()
