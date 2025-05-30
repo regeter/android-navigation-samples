@@ -66,6 +66,8 @@
             </intent-filter>
         </activity>
         <activity android:name="com.example.regeternaviapitest.PlacePickerActivity" android:exported="false"/>
+        <activity android:name=".LifecycleTriggerActivity" android:exported="false" />
+
         <service android:name="com.example.regeternaviapitest.NavInfoReceivingService"
             android:exported="false"/>
     </application>

@@ -17,37 +17,47 @@
 package com.example.regeternaviapitest
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.Parcel
 import android.util.Log
+import android.view.Gravity
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.WindowManager
+import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
-import android.os.Handler
-import android.os.Looper
-import android.view.Gravity
-import android.widget.Button
-import android.widget.LinearLayout
-import kotlinx.coroutines.*
-import com.google.android.libraries.navigation.ListenableResultFuture
 import com.example.regeternaviapitest.CustomizationPanelsDelegate.logDebugInfo
 import com.example.regeternaviapitest.NavFragmentActivity.ButtonConfig
+import com.google.android.gms.common.api.Status
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.libraries.navigation.CustomRoutesOptions
+import com.google.android.libraries.navigation.DisplayOptions
+import com.google.android.libraries.navigation.ListenableResultFuture
 import com.google.android.libraries.navigation.NavigationApi
 import com.google.android.libraries.navigation.NavigationApi.NavigatorListener
 import com.google.android.libraries.navigation.NavigationView
 import com.google.android.libraries.navigation.Navigator
 import com.google.android.libraries.navigation.Navigator.RouteStatus
-import com.google.android.libraries.navigation.SimulationOptions
+import com.google.android.libraries.navigation.RouteSegment
 import com.google.android.libraries.navigation.Waypoint
 import com.google.android.libraries.navigation.Waypoint.UnsupportedPlaceIdException
 import com.google.android.libraries.places.api.model.Place
-import java.lang.Exception
+import com.google.common.collect.Lists
+import kotlinx.coroutines.*
 import java.util.concurrent.Executors
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import androidx.lifecycle.lifecycleScope
+
 
 /**
  * This activity shows a simple Navigation API implementation using a Navigation view and using the
@@ -55,6 +65,7 @@ import java.util.concurrent.Executors
  */
 private const val TAG = "NavViewActivity"
 private const val PLACE_PICKER_REQUEST = 1
+private const val LIFECYCLE_TRIGGER_REQUEST = 2
 
 class NavViewActivity : AppCompatActivity() {
   companion object {
@@ -72,6 +83,8 @@ class NavViewActivity : AppCompatActivity() {
 
   // Only used to demo the turn-by-turn nav forwarding feature.
   var navInfoDisplayFragment: Fragment? = null
+
+    private val ACTION_DELAY_MS = 50L
 
   @SuppressLint("MissingPermission") // TODO: requestPermissions(...) in here or earlier
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -98,32 +111,110 @@ class NavViewActivity : AppCompatActivity() {
 
     buttonContainer = findViewById(R.id.button_container)
 
-    // Define button configurations
-    val buttonConfigs = listOf(
-      ButtonConfig("startGuidance") { withNavigatorAsync {navigator.startGuidance() }},
-      ButtonConfig("stopGuidance") { withNavigatorAsync {navigator.stopGuidance() }},
-      ButtonConfig("clearDestinations") { withNavigatorAsync {navigator.clearDestinations() }},
-      ButtonConfig("test") {
-        testRapidRouteChanges(resetFun = ::resetEtaTracking)
-      },
-      ButtonConfig("test Coroutine") {
-        testRapidRouteChanges(resetFun = ::resetEtaTrackingWithCoroutine)
-      },
-      ButtonConfig("test SingleThreadExecutor") {
-        testRapidRouteChanges(resetFun = ::resetEtaTrackingSingleThreadExecutor)
-      },
-      ButtonConfig("test Debounce") {
-        testRapidRouteChanges(resetFun = ::resetEtaTrackingDebounce)
-      },
-      ButtonConfig("Manual testRouteWithDelayCancellation") {
-        Log.d(TAG, "Manual testRouteWithDelayCancellation")
-        testRouteWithDelayCancellation(37.41433987, -122.077361, resetFun = ::resetEtaTracking)
-      },
-      ButtonConfig("Manual resetEtaTracking") {
-        Log.d(TAG, "Manual resetEtaTracking")
-        resetEtaTracking()
-      }
-    )
+      // Define button configurations
+      val buttonConfigs = listOf(
+          ButtonConfig("stop&StartGuidance LifecycleActivity") {
+              // `this` inside this lambda refers to NavViewActivity
+              // Use lifecycleScope to launch a coroutine tied to the Activity's lifecycle
+              lifecycleScope.launch {
+                  withNavigatorAsync { navigator.stopGuidance() }
+                  delay(500L)
+                  startActivity(Intent(this@NavViewActivity, LifecycleTriggerActivity::class.java))
+                  delay(10L)
+                  withNavigatorAsync { navigator.startGuidance() }
+              }
+          },
+          ButtonConfig("startGuidance") { withNavigatorAsync { navigator.startGuidance() } },
+          ButtonConfig("stopGuidance") { withNavigatorAsync { navigator.stopGuidance() } },
+          ButtonConfig("clearDestinations") { withNavigatorAsync { navigator.clearDestinations() } },
+//          ButtonConfig("Drive: GWC5") {
+//              customNavigate(
+//                  Waypoint.builder().setLatLng(37.42488508364013, -122.09432661174287).build(),
+//              )
+//          },
+//          ButtonConfig("Drive: GWC5 LifecycleActivity") {
+//              customNavigate(
+//                  Waypoint.builder().setLatLng(37.42488508364013, -122.09432661174287).build(),
+//                  triggerLifecycleActivity = true,
+//              )
+//          },
+          ButtonConfig("Drive") {
+              customNavigate(
+                  Waypoint.builder().setPlaceIdString("ChIJx1Owgt9_mQAR0CgMWKKWoKU").build(),
+              )
+          },
+          ButtonConfig("Drive 1300ms") {
+              lifecycleScope.launch {
+                  startActivity(Intent(this@NavViewActivity, LifecycleTriggerActivity::class.java))
+                  delay(1300L)
+                  customNavigate(
+                      Waypoint.builder().setPlaceIdString("ChIJx1Owgt9_mQAR0CgMWKKWoKU").build(),
+                  )
+              }
+          },
+          ButtonConfig("Drive 1400ms") {
+              lifecycleScope.launch {
+                  startActivity(Intent(this@NavViewActivity, LifecycleTriggerActivity::class.java))
+                  delay(1400L)
+                  customNavigate(
+                      Waypoint.builder().setPlaceIdString("ChIJx1Owgt9_mQAR0CgMWKKWoKU").build(),
+                  )
+              }
+          },
+          ButtonConfig("Drive 1500ms") {
+              lifecycleScope.launch {
+                  startActivity(Intent(this@NavViewActivity, LifecycleTriggerActivity::class.java))
+                  delay(1500L)
+                  customNavigate(
+                      Waypoint.builder().setPlaceIdString("ChIJx1Owgt9_mQAR0CgMWKKWoKU").build(),
+                  )
+              }
+          },
+//          ButtonConfig("Drive: Rio LifecycleActivity") {
+//              customNavigate(
+//                  Waypoint.builder().setPlaceIdString("ChIJx1Owgt9_mQAR0CgMWKKWoKU").build(),
+//                  triggerLifecycleActivity = true,
+//              )
+//          },
+//          ButtonConfig("Drive: Rio (2 Waypoints)") {
+//              customNavigate(
+//                  Waypoint.builder().setLatLng(-22.9568329275, -43.196852216).build(),
+//                  Waypoint.builder().setPlaceIdString("ChIJx1Owgt9_mQAR0CgMWKKWoKU")
+//                      .build(), // Rua Capitão Salomão, 38, Botafogo, Rio de Janeiro
+//              )
+//          },
+//          ButtonConfig("Drive: Rio (2 Waypoints) LifecycleActivity") {
+//              customNavigate(
+//                  Waypoint.builder().setLatLng(-22.9568329275, -43.196852216).build(),
+//                  Waypoint.builder().setPlaceIdString("ChIJx1Owgt9_mQAR0CgMWKKWoKU")
+//                      .build(), // Rua Capitão Salomão, 38, Botafogo, Rio de Janeiro
+//                  triggerLifecycleActivity = true,
+//              )
+//          },
+//          ButtonConfig("Drive: Mock Place Rio") {
+//              navigateToPlace(createMockPlace("ChIJx1Owgt9_mQAR0CgMWKKWoKU", -22.944742, -43.180968))
+//          },
+//          ButtonConfig("Rio (Place Lookup Minimal)") {
+//              Handler(Looper.getMainLooper()).postDelayed({
+//                  val intent = Intent(this@NavViewActivity, PlacePickerActivity::class.java).apply {
+//                      putExtra(PlacePickerActivity.EXTRA_PROGRAMMATIC_LOOKUP_ADDRESS, "Rua Capitão Salomão, 38, Botafogo, Rio de Janeiro, Brazil")
+//                  }
+//                  startActivityForResult(intent, PLACE_PICKER_REQUEST)
+//              }, 100)
+//          },
+          ButtonConfig("continueToNextDestination") { withNavigatorAsync { navigator.continueToNextDestination() } },
+
+          ButtonConfig("showRouteOverview") { withNavigatorAsync { navView.showRouteOverview() } },
+
+          ButtonConfig("Trigger Lifecycle Only") {
+              startActivity(Intent(this@NavViewActivity, LifecycleTriggerActivity::class.java))
+          },
+
+          )
+
+
+//   ChIJx1Owgt9_mQAR0CgMWKKWoKU
+      // Rua Capitão Salomão, 38, Botafogo, Rio de Janeiro
 
     // Add buttons dynamically
     buttonConfigs.forEach { config ->
@@ -240,31 +331,38 @@ class NavViewActivity : AppCompatActivity() {
     }
   }
 
-  /**
-   * Registers a number of example event listeners that show an on screen message when certain
-   * navigation events occur (e.g. the driver's route changes or the destination is reached).
-   */
-  private fun registerNavigationListeners() {
-    withNavigatorAsync {
-      arrivalListener =
-        Navigator.ArrivalListener { // Show an onscreen message
-          showToast("User has arrived at the destination!")
-          navigator.clearDestinations()
+    /**
+     * Registers a number of example event listeners that show an on screen message when certain
+     * navigation events occur (e.g. the driver's route changes or the destination is reached).
+     */
+    private fun registerNavigationListeners() {
+        withNavigatorAsync {
+            arrivalListener =
+                Navigator.ArrivalListener { waypoint ->
+                    val waypointName =
+                        waypoint?.waypoint ?: waypoint.toString() ?: "Unknown Waypoint"
+                    val message = "User has arrived at destination: $waypointName"
+                    showToast(message)
+                    val currRouteSegment: RouteSegment = navigator.getCurrentRouteSegment()
 
-          // Stop simulating vehicle movement.
-          if (BuildConfig.DEBUG) {
-            navigator.simulator?.unsetUserLocation()
-          }
-        }
-      navigator.addArrivalListener(arrivalListener)
+                    if (currRouteSegment != null) {
+                        val latLngs = currRouteSegment.latLngs
+                        Log.i(TAG, latLngs.toString())
+                    }
+                }
+            navigator.addArrivalListener(arrivalListener)
+            Log.d(TAG, "ArrivalListener registered.")
 
-      routeChangedListener =
-        Navigator.RouteChangedListener { // Show an onscreen message when the route changes
-          showToast("onRouteChanged: the driver's route changed")
+
+
+            routeChangedListener =
+                Navigator.RouteChangedListener { // Show an onscreen message when the route changes
+                    Log.i(TAG, "onRouteChanged: the driver's route changed")
+                }
+            navigator.addRouteChangedListener(routeChangedListener)
+            Log.d(TAG, "RouteChangedListener registered.")
         }
-      navigator.addRouteChangedListener(routeChangedListener)
     }
-  }
 
   /**
    * Requests directions from the user's current location to a specific place (provided by the
@@ -276,10 +374,12 @@ class NavViewActivity : AppCompatActivity() {
         // An example of setting a destination via Lat-Lng.
         // Note: Setting LatLng destinations can result in poor routing quality/ETA calculation.
         // Wherever possible you should use a Place ID to describe the destination accurately.
+          showToast("destination via Lat-Lng")
         place.latLng?.let { Waypoint.builder().setLatLng(it.latitude, it.longitude).build() }
       } else {
         // Set a destination by using a Place ID (the recommended method)
         try {
+            showToast(place.id)
           Waypoint.builder().setPlaceIdString(place.id).build()
         } catch (e: UnsupportedPlaceIdException) {
           showToast("Place ID was unsupported.")
@@ -301,11 +401,11 @@ class NavViewActivity : AppCompatActivity() {
             navigator.setAudioGuidance(Navigator.AudioGuidance.VOICE_ALERTS_AND_GUIDANCE)
 
             // Simulate vehicle progress along the route (for demo/debug builds)
-            if (BuildConfig.DEBUG) {
-              navigator.simulator.simulateLocationsAlongExistingRoute(
-                SimulationOptions().speedMultiplier(5f)
-              )
-            }
+//            if (BuildConfig.DEBUG) {
+//              navigator.simulator.simulateLocationsAlongExistingRoute(
+//                SimulationOptions().speedMultiplier(5f)
+//              )
+//            }
 
             // Start turn-by-turn guidance along the current route
             navigator.startGuidance()
@@ -321,155 +421,55 @@ class NavViewActivity : AppCompatActivity() {
     }
   }
 
-    private fun testRapidRouteChanges(resetFun: () -> Unit) {
-        Log.d(TAG, "testRapidRouteChanges")
-        // Multiple rapid starts
-        repeat(3) {
-            testRouteWithDelayCancellation(37.41433987, -122.077361, resetFun)
-            // Minimal delay between calls to increase race condition chance
-            Thread.sleep(100)
+    private fun customNavigate(
+        vararg waypoints: Waypoint,
+        routeToken: String? = null,
+        triggerLifecycleActivity: Boolean = false
+    ) {
+        if (waypoints.isEmpty()) {
+            showToast("Cannot navigate without at least one destination.")
+            Log.e(TAG, "customNavigate called with no waypoints.")
+            return
         }
-        // Immediate cancel
-        resetFun()
-    }
 
-    private fun testRouteWithDelayCancellation(lat: Double, lng: Double, resetFun: () -> Unit) {
-        withNavigatorAsync {
-            val destination = Waypoint.builder()
-                .setLatLng(lat, lng)
-                .build()
-
-            Log.d(TAG, "Setting destination for cancel test")
-            mPendingRoute = navigator.setDestination(destination)
-            mPendingRoute?.setOnResultListener { code: RouteStatus ->
-                when (code) {
-                    RouteStatus.OK -> {
-                        Log.d(TAG, "Route set successfully, could call resumeEtaTracking")
-                    }
-
-                    else -> {
-                        Log.e(TAG, "Route setting failed with code: $code")
-                    }
+        val setDestinationsAction = {
+            Log.d(TAG, "customNavigate: Proceeding to set destinations.")
+            val destinations = Lists.newArrayList<Waypoint>()
+            destinations.addAll(waypoints)
+            withNavigatorAsync {
+                val routeStatusFuture = if (routeToken != null) {
+                    Log.d(TAG, "customNavigate: Using CustomRoutesOptions.")
+                    navigator.setDestinations(
+                        destinations,
+                        CustomRoutesOptions.builder().setRouteToken(routeToken)
+                            .setTravelMode(CustomRoutesOptions.TravelMode.DRIVING).build(),
+                        DisplayOptions()
+                    )
+                } else {
+                    Log.d(TAG, "customNavigate: Not using CustomRoutesOptions.")
+                    navigator.setDestinations(destinations)
                 }
-            }
-
-            // Schedule a cancellation after 5 seconds
-            Handler(Looper.getMainLooper()).postDelayed({
-                Log.d(TAG, "Executing reset after delay")
-                resetFun()
-            }, 5000)
-        }
-    }
-
-    private fun resetEtaTracking() {
-        Log.d(TAG, "Starting resetEtaTracking")
-
-        withNavigatorAsync {
-            navigator.stopGuidance()
-
-            try {
-                Log.d(TAG, "Attempting to cancel pending route")
-                mPendingRoute?.cancel(true)
-            } catch (e: Exception) {
-                Log.e(TAG, "Cancel pending route failed", e)
-            } finally {
-                mPendingRoute = null
-                Log.d(TAG, "Reset completed")
-            }
-            navigator.clearDestinations()
-        }
-    }
-
-    private fun resetEtaTrackingWithCoroutine() {
-        Log.d(TAG, "Starting resetEtaTrackingWithCoroutine")
-
-        // Capture and clear the pending route reference immediately
-        val routeToCancel = mPendingRoute
-        mPendingRoute = null
-
-        withNavigatorAsync {
-            navigator.stopGuidance()
-            Log.d(TAG, "Reset completed")
-
-
-            routeToCancel?.let { pendingRoute ->
-                CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
-                    try {
-                        Log.d(TAG, "Starting async route cancellation")
-                        Log.d(
-                            TAG,
-                            "Route state - isDone: ${pendingRoute.isDone}, isCancelled: ${pendingRoute.isCancelled}"
-                        )
-
-                        if (!pendingRoute.isDone && !pendingRoute.isCancelled) {
-                            try {
-                                pendingRoute.cancel(true)
-                            } catch (e: Exception) {
-                                Log.e(TAG, "Route cancellation failed", e)
-                            }
-                        }
-                        Log.d(TAG, "Async route cancellation completed")
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Async route cancellation process failed", e)
-                    }
-                }
-            }
-            navigator.clearDestinations()
-        }
-    }
-
-    private fun resetEtaTrackingSingleThreadExecutor() {
-        Log.d(TAG, "Starting resetEtaTrackingSingleThreadExecutor")
-
-        // Capture and clear reference immediately
-        val routeToCancel = mPendingRoute
-        mPendingRoute = null
-
-        withNavigatorAsync {
-            navigator.stopGuidance()
-            navigator.clearDestinations()
-        }
-
-        // Queue cancellation on dedicated single thread
-        routeToCancel?.let { pendingRoute ->
-            routeCancellationExecutor.execute {
-                try {
-                    pendingRoute.cancel(true)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Route cancellation failed", e)
-                }
+                routeStatusFuture?.setOnResultListener { result ->
+                    result?.let { status ->
+                        Log.d(TAG, "customNavigate Route Status: $status")
+                        if (status == RouteStatus.OK) navigator.startGuidance()
+                    } ?: showToast("customNavigate Route Status is null")
+                } ?: Log.e(TAG, "customNavigate: routeStatusFuture was null")
             }
         }
-    }
 
-    private fun resetEtaTrackingDebounce() {
-        Log.d(TAG, "Starting resetEtaTrackingDebounce")
-
-        val routeToCancel = mPendingRoute
-        mPendingRoute = null
-
-        withNavigatorAsync {
-            navigator.stopGuidance()
-
-            // Cancel previous pending cancellation
-            cancellationJob?.cancel()
-
-            // Start new debounced cancellation
-            cancellationJob = cancellationScope.launch {
-                delay(500) // Wait for 500ms for no subsequent cancels
-                routeToCancel?.let { pendingRoute ->
-                    try {
-                        Log.d(TAG, "pendingRoute.cancel(true)")
-                        pendingRoute.cancel(true)
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Route cancellation failed", e)
-                    }
-                }
+        if (triggerLifecycleActivity) {
+            Log.d(TAG, "customNavigate: Triggering lifecycle activity.")
+            startActivity(Intent(this, LifecycleTriggerActivity::class.java))
+            Handler(Looper.getMainLooper()).post {
+                Log.d(TAG, "customNavigate: Post-lifecycle trigger, setting destinations.")
+                setDestinationsAction()
             }
-            navigator.clearDestinations()
+        } else {
+            Log.d(TAG, "customNavigate: Setting destinations directly.")
+            setDestinationsAction()
         }
     }
-
 
   override fun onSaveInstanceState(savedInstanceState: Bundle) {
     super.onSaveInstanceState(savedInstanceState)
@@ -489,6 +489,10 @@ class NavViewActivity : AppCompatActivity() {
 
   override fun onResume() {
     super.onResume()
+      Log.d(TAG, "onResume called.")
+      customNavigate(
+          Waypoint.builder().setPlaceIdString("ChIJx1Owgt9_mQAR0CgMWKKWoKU").build(),
+      )
     navView.onResume()
   }
 
@@ -535,13 +539,21 @@ class NavViewActivity : AppCompatActivity() {
 
   /** If the Place Picker activity returns a destination, starts navigation to that place. */
   override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-    super.onActivityResult(requestCode, resultCode, data)
-    if (requestCode == PLACE_PICKER_REQUEST && resultCode == RESULT_OK) {
-      data?.let {
-        val place: Place = PlacePickerActivity.getPlace(it)
-        navigateToPlace(place)
+      super.onActivityResult(requestCode, resultCode, data)
+      if (requestCode == PLACE_PICKER_REQUEST) {
+          if (resultCode == Activity.RESULT_OK && data != null) {
+              try {
+                  val place: Place = PlacePickerActivity.getPlace(data)
+                  navigateToPlace(place)
+              } catch (e: Exception) { Log.e(TAG, "onActivityResult: Error getting Place", e) }
+          } else if (resultCode == Activity.RESULT_CANCELED && data != null) {
+              val customError = PlacePickerActivity.getProgrammaticError(data)
+              Log.w(TAG, "PlacePicker: ${customError ?: data.getParcelableExtra<Status>("STATUS")?.statusMessage ?: "Cancelled"}")
+          }
+      } else if (requestCode == LIFECYCLE_TRIGGER_REQUEST) {
+          Log.d(TAG, "Returned from LifecycleTriggerActivity. Result: $resultCode")
+          // The navigation action is handled by the Handler.post in customNavigate
       }
-    }
   }
 
   /**
@@ -619,5 +631,36 @@ class NavViewActivity : AppCompatActivity() {
 
   private fun showToast(errorMessage: String) {
     Toast.makeText(this@NavViewActivity, errorMessage, Toast.LENGTH_LONG).show()
+      Log.i("MyTag", errorMessage);
   }
+
+    fun createMockPlace(placeId: String, lat: Double, lng: Double): Place {
+        // Create a custom implementation of Place
+        return object : Place() {
+            override fun getId(): String = placeId
+            override fun getLatLng(): LatLng = LatLng(lat, lng)
+            override fun getTypes(): List<Place.Type> = listOf(Place.Type.STREET_ADDRESS)
+
+            // The rest of these methods return null as we're not using them
+            override fun getAddress(): String? = null
+            override fun getAddressComponents(): com.google.android.libraries.places.api.model.AddressComponents? = null
+            override fun getName(): String? = null
+            override fun getOpeningHours(): com.google.android.libraries.places.api.model.OpeningHours? = null
+            override fun getPhoneNumber(): String? = null
+            override fun getPhotoMetadatas(): List<com.google.android.libraries.places.api.model.PhotoMetadata>? = null
+            override fun getPlusCode(): com.google.android.libraries.places.api.model.PlusCode? = null
+            override fun getPriceLevel(): Int? = null
+            override fun getRating(): Double? = null
+            override fun getUserRatingsTotal(): Int? = null
+            override fun getViewport(): com.google.android.gms.maps.model.LatLngBounds? = null
+            override fun getWebsiteUri(): android.net.Uri? = null
+            override fun getUtcOffsetMinutes(): Int? = null
+            override fun getIconUrl(): String? = null
+            override fun getIconBackgroundColor(): Int? = null
+            override fun describeContents(): Int = 0
+            override fun writeToParcel(dest: Parcel, flags: Int) {}
+            override fun getBusinessStatus(): BusinessStatus? = null
+            override fun getAttributions(): List<String>? = null
+        }
+    }
 }
