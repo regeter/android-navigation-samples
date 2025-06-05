@@ -133,7 +133,7 @@ class SplashScreenActivity : AppCompatActivity() {
   }
 
   companion object {
-    const val MAIN_ACTIVITY_INTENT_ACTION = "com.example.navigationapidemo.intent.action.MAIN"
+    const val MAIN_ACTIVITY_INTENT_ACTION = "com.example.regeternaviapitest.intent.action.MAIN"
     private const val MY_PERMISSIONS_REQUEST_ACCESS_LOCATION = 100
     private val SPLASH_SCREEN_DELAY_MILLIS = TimeUnit.SECONDS.toMillis(2)
   }

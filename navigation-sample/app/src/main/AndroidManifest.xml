@@ -45,7 +45,7 @@
             android:name="com.example.regeternaviapitest.MainActivity"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.example.navigationapidemo.intent.action.MAIN" />
+                <action android:name="com.example.regeternaviapitest.intent.action.MAIN" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>

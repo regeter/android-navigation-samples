@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// com/example/navigationapidemo/NavFragmentActivity.kt
+// com/example/regeternaviapitest/NavFragmentActivity.kt
 package com.example.regeternaviapitest
 
 import android.annotation.SuppressLint
