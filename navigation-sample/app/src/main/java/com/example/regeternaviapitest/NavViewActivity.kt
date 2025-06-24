@@ -69,6 +69,7 @@ private const val LIFECYCLE_TRIGGER_REQUEST = 2
 
 class NavViewActivity : AppCompatActivity() {
   companion object {
+    const val INTENT_PLACE_ID = "com.example.regeternaviapitest.PLACE_ID"
     private val routeCancellationExecutor = Executors.newSingleThreadExecutor()
   }
   private lateinit var navView: NavigationView
@@ -94,6 +95,18 @@ class NavViewActivity : AppCompatActivity() {
     navView = findViewById(R.id.navigation_view)
 
     navView.onCreate(savedInstanceState)
+
+    val placeIdToNavigate = intent.getStringExtra(INTENT_PLACE_ID)
+    if (!placeIdToNavigate.isNullOrEmpty()) {
+        try {
+            val destination = Waypoint.builder().setPlaceIdString(placeIdToNavigate).build()
+            customNavigate(destination)
+        } catch (e: UnsupportedPlaceIdException) {
+            showToast("Error: Provided Place ID is unsupported.")
+            Log.e(TAG, "Unsupported Place ID from intent: $placeIdToNavigate", e)
+        }
+    }
+
 
     // Set up the UI that allows the user to control some NavSDK behaviors in the demo app.
     // These panels set up all the users' selectable options, like whether to show the trip
@@ -489,10 +502,7 @@ class NavViewActivity : AppCompatActivity() {
 
   override fun onResume() {
     super.onResume()
-      Log.d(TAG, "onResume called.")
-//      customNavigate(
-//          Waypoint.builder().setPlaceIdString("ChIJx1Owgt9_mQAR0CgMWKKWoKU").build(),
-//      )
+    Log.d(TAG, "onResume function")
     navView.onResume()
   }
 

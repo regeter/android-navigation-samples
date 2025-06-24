@@ -39,6 +39,15 @@ class MainActivity : AppCompatActivity() {
       }
     }
 
+    findViewById<Button>(R.id.button_navigate_sdk_direct).setOnClickListener {
+    val placeId = "ChIJx1Owgt9_mQAR0CgMWKKWoKU" // Place ID for Rio destination
+    
+    val intent = Intent(this, NavViewActivity::class.java).apply {
+        putExtra(NavViewActivity.INTENT_PLACE_ID, placeId)
+    }
+    startActivity(intent)
+}
+
     // Existing ListView setup
     val listAdapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, DEMOS.keys.toList())
     val listView = findViewById<ListView>(R.id.list_view)

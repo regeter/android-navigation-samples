@@ -32,6 +32,12 @@
       android:layout_marginTop="16dp"/>
 
   <Button
+      android:id="@+id/button_navigate_sdk_direct"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:text="Navigate with NavSDK (PlaceId)" />
+
+  <Button
       android:id="@+id/button_navigate_maps"
       android:layout_width="match_parent"
       android:layout_height="wrap_content"
