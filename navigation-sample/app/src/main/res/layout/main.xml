@@ -19,7 +19,8 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:padding="16dp">
   <TextView
       android:id="@+id/selection_text_view"
       android:text="@string/selection_text"
@@ -29,8 +30,17 @@
       android:layout_marginEnd="16dp"
       android:layout_marginBottom="16dp"
       android:layout_marginTop="16dp"/>
+
+  <Button
+      android:id="@+id/button_navigate_maps"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:text="Navigate with Google Maps"
+      android:layout_marginBottom="8dp"/>
+
   <ListView
       android:id="@+id/list_view"
       android:layout_width="match_parent"
-      android:layout_height="match_parent" />
+      android:layout_height="0dp"
+      android:layout_weight="1" />
 </LinearLayout>

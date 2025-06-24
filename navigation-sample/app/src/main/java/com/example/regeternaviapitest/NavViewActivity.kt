@@ -176,13 +176,13 @@ class NavViewActivity : AppCompatActivity() {
 //                  triggerLifecycleActivity = true,
 //              )
 //          },
-//          ButtonConfig("Drive: Rio (2 Waypoints)") {
-//              customNavigate(
-//                  Waypoint.builder().setLatLng(-22.9568329275, -43.196852216).build(),
-//                  Waypoint.builder().setPlaceIdString("ChIJx1Owgt9_mQAR0CgMWKKWoKU")
-//                      .build(), // Rua Capitão Salomão, 38, Botafogo, Rio de Janeiro
-//              )
-//          },
+          ButtonConfig("Drive: Rio (2 Waypoints)") {
+              customNavigate(
+                  Waypoint.builder().setLatLng(-22.9568329275, -43.196852216).build(),
+                  Waypoint.builder().setPlaceIdString("ChIJx1Owgt9_mQAR0CgMWKKWoKU")
+                      .build(), // Rua Capitão Salomão, 38, Botafogo, Rio de Janeiro
+              )
+          },
 //          ButtonConfig("Drive: Rio (2 Waypoints) LifecycleActivity") {
 //              customNavigate(
 //                  Waypoint.builder().setLatLng(-22.9568329275, -43.196852216).build(),
@@ -490,9 +490,9 @@ class NavViewActivity : AppCompatActivity() {
   override fun onResume() {
     super.onResume()
       Log.d(TAG, "onResume called.")
-      customNavigate(
-          Waypoint.builder().setPlaceIdString("ChIJx1Owgt9_mQAR0CgMWKKWoKU").build(),
-      )
+//      customNavigate(
+//          Waypoint.builder().setPlaceIdString("ChIJx1Owgt9_mQAR0CgMWKKWoKU").build(),
+//      )
     navView.onResume()
   }
 
