@@ -21,7 +21,7 @@
 
     <fragment
         android:id="@+id/navigation_fragment"
-        android:name="com.google.android.libraries.navigation.SupportNavigationFragment"
+        android:name="com.example.regeternaviapitest.MyCrashableNavFragment"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_below="@id/nav_info_frame" />

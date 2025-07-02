@@ -30,6 +30,7 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContentProviderCompat.requireContext
 import androidx.fragment.app.Fragment
 import com.example.regeternaviapitest.CustomizationPanelsDelegate.logDebugInfo
 import com.google.android.gms.maps.model.LatLng
@@ -79,11 +80,20 @@ class NavFragmentActivity : AppCompatActivity() {
   @SuppressLint("MissingPermission") // TODO: requestPermissions(...) in here or earlier
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+
+//    navFragment.setTrafficPromptsEnabled(false)
+//    navFragment.setTrafficIncidentCardsEnabled(false)
+//    navFragment.setReportIncidentButtonEnabled(false)
+
+
     setContentView(R.layout.activity_nav_fragment)
 
     // Obtain a reference to the NavigationFragment
     navFragment =
       supportFragmentManager.findFragmentById(R.id.navigation_fragment) as SupportNavigationFragment
+
+//    navFragment.setTrafficPromptsEnabled(false)
+//    showToast("setTrafficPromptsEnabled")
 
     // Set up the UI that allows the user to control some NavSDK behaviors in the demo app.
     // These panels set up all the users' selectable options, like whether to show the trip
@@ -116,7 +126,10 @@ class NavFragmentActivity : AppCompatActivity() {
       ButtonConfig("Enable Recenter") { navFragment.setRecenterButtonEnabled(true) },
       ButtonConfig("Disable Recenter") { navFragment.setRecenterButtonEnabled(false) },
       ButtonConfig("Follow Location") { followMyLocation(1) },
-      ButtonConfig("Unfollow Location") { followMyLocation(0) }
+      ButtonConfig("Unfollow Location") { followMyLocation(0) },
+      ButtonConfig("setTrafficIncidentCardsEnabled")     { navFragment.setTrafficIncidentCardsEnabled(false) },
+      ButtonConfig("setTrafficPromptsEnabled") { navFragment.setTrafficPromptsEnabled(false) },
+      ButtonConfig("setReportIncidentButtonEnabled") { navFragment.setReportIncidentButtonEnabled(false) },
     )
 
     // Add buttons dynamically
