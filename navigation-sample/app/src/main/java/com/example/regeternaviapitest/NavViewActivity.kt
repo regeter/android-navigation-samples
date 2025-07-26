@@ -57,6 +57,8 @@ import java.util.concurrent.Executors
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import androidx.lifecycle.lifecycleScope
+import org.json.JSONObject
+import org.json.JSONException
 
 
 /**
@@ -126,108 +128,71 @@ class NavViewActivity : AppCompatActivity() {
 
       // Define button configurations
       val buttonConfigs = listOf(
-          ButtonConfig("stop&StartGuidance LifecycleActivity") {
-              // `this` inside this lambda refers to NavViewActivity
-              // Use lifecycleScope to launch a coroutine tied to the Activity's lifecycle
-              lifecycleScope.launch {
-                  withNavigatorAsync { navigator.stopGuidance() }
-                  delay(500L)
-                  startActivity(Intent(this@NavViewActivity, LifecycleTriggerActivity::class.java))
-                  delay(10L)
-                  withNavigatorAsync { navigator.startGuidance() }
-              }
-          },
           ButtonConfig("startGuidance") { withNavigatorAsync { navigator.startGuidance() } },
           ButtonConfig("stopGuidance") { withNavigatorAsync { navigator.stopGuidance() } },
-          ButtonConfig("clearDestinations") { withNavigatorAsync { navigator.clearDestinations() } },
-//          ButtonConfig("Drive: GWC5") {
-//              customNavigate(
-//                  Waypoint.builder().setLatLng(37.42488508364013, -122.09432661174287).build(),
-//              )
-//          },
-//          ButtonConfig("Drive: GWC5 LifecycleActivity") {
-//              customNavigate(
-//                  Waypoint.builder().setLatLng(37.42488508364013, -122.09432661174287).build(),
-//                  triggerLifecycleActivity = true,
-//              )
-//          },
-          ButtonConfig("Drive") {
+          ButtonConfig("Simulate Location Berlin") { withNavigatorAsync { navigator.simulator.setUserLocation(LatLng(52.521430, 13.386072)) } },
+          ButtonConfig("Drive: Berlin Pickup Same Side") {
               customNavigate(
-                  Waypoint.builder().setPlaceIdString("ChIJx1Owgt9_mQAR0CgMWKKWoKU").build(),
+                  Waypoint.builder().setLatLng(52.520512,13.388421).setPreferSameSideOfRoad(true).build(),
+                  triggerLifecycleActivity = false,
               )
           },
-          ButtonConfig("Drive 1300ms") {
-              lifecycleScope.launch {
-                  startActivity(Intent(this@NavViewActivity, LifecycleTriggerActivity::class.java))
-                  delay(1300L)
-                  customNavigate(
-                      Waypoint.builder().setPlaceIdString("ChIJx1Owgt9_mQAR0CgMWKKWoKU").build(),
-                  )
-              }
+          ButtonConfig("Drive: Berlin Pickup Any Side") {
+              customNavigate(
+                  Waypoint.builder().setLatLng(52.520512,13.388421).setPreferSameSideOfRoad(false).build(),
+                  triggerLifecycleActivity = false,
+              )
           },
-          ButtonConfig("Drive 1400ms") {
-              lifecycleScope.launch {
-                  startActivity(Intent(this@NavViewActivity, LifecycleTriggerActivity::class.java))
-                  delay(1400L)
-                  customNavigate(
-                      Waypoint.builder().setPlaceIdString("ChIJx1Owgt9_mQAR0CgMWKKWoKU").build(),
-                  )
-              }
-          },
-          ButtonConfig("Drive 1500ms") {
-              lifecycleScope.launch {
-                  startActivity(Intent(this@NavViewActivity, LifecycleTriggerActivity::class.java))
-                  delay(1500L)
-                  customNavigate(
-                      Waypoint.builder().setPlaceIdString("ChIJx1Owgt9_mQAR0CgMWKKWoKU").build(),
-                  )
-              }
-          },
-//          ButtonConfig("Drive: Rio LifecycleActivity") {
-//              customNavigate(
-//                  Waypoint.builder().setPlaceIdString("ChIJx1Owgt9_mQAR0CgMWKKWoKU").build(),
-//                  triggerLifecycleActivity = true,
-//              )
-//          },
           ButtonConfig("Drive: Rio (2 Waypoints)") {
               customNavigate(
-                  Waypoint.builder().setLatLng(-22.9568329275, -43.196852216).build(),
-                  Waypoint.builder().setPlaceIdString("ChIJx1Owgt9_mQAR0CgMWKKWoKU")
+                  Waypoint.builder().setLatLng(-22.9568329275, -43.196852216).setPreferSameSideOfRoad(true).build(),
+                  Waypoint.builder().setPlaceIdString("ChIJx1Owgt9_mQAR0CgMWKKWoKU").setPreferSameSideOfRoad(false)
                       .build(), // Rua Capitão Salomão, 38, Botafogo, Rio de Janeiro
               )
           },
-//          ButtonConfig("Drive: Rio (2 Waypoints) LifecycleActivity") {
-//              customNavigate(
-//                  Waypoint.builder().setLatLng(-22.9568329275, -43.196852216).build(),
-//                  Waypoint.builder().setPlaceIdString("ChIJx1Owgt9_mQAR0CgMWKKWoKU")
-//                      .build(), // Rua Capitão Salomão, 38, Botafogo, Rio de Janeiro
-//                  triggerLifecycleActivity = true,
-//              )
-//          },
-//          ButtonConfig("Drive: Mock Place Rio") {
-//              navigateToPlace(createMockPlace("ChIJx1Owgt9_mQAR0CgMWKKWoKU", -22.944742, -43.180968))
-//          },
-//          ButtonConfig("Rio (Place Lookup Minimal)") {
-//              Handler(Looper.getMainLooper()).postDelayed({
-//                  val intent = Intent(this@NavViewActivity, PlacePickerActivity::class.java).apply {
-//                      putExtra(PlacePickerActivity.EXTRA_PROGRAMMATIC_LOOKUP_ADDRESS, "Rua Capitão Salomão, 38, Botafogo, Rio de Janeiro, Brazil")
-//                  }
-//                  startActivityForResult(intent, PLACE_PICKER_REQUEST)
-//              }, 100)
-//          },
+          ButtonConfig("clearDestinations") { withNavigatorAsync { navigator.clearDestinations() } },
           ButtonConfig("continueToNextDestination") { withNavigatorAsync { navigator.continueToNextDestination() } },
-
           ButtonConfig("showRouteOverview") { withNavigatorAsync { navView.showRouteOverview() } },
-
           ButtonConfig("Trigger Lifecycle Only") {
               startActivity(Intent(this@NavViewActivity, LifecycleTriggerActivity::class.java))
           },
+          ButtonConfig("getCurrentRouteSegment()") {
+              withNavigatorAsync {
+                  val segment: RouteSegment? = navigator.getCurrentRouteSegment()
+                  if (segment != null) {
+                      val waypoint: Waypoint? = segment.destinationWaypoint
+                      if (waypoint != null) {
+                          try {
+                              val waypointDetails = JSONObject()
+                              waypointDetails.put("title", waypoint.title)
+                              waypointDetails.put("preferSameSideOfRoad", waypoint.preferSameSideOfRoad)
+                              waypointDetails.put("preferredHeading", waypoint.preferredHeading)
+
+                              val position = JSONObject()
+                              if (waypoint.position != null) {
+                                  position.put("lat", waypoint.position!!.latitude)
+                                  position.put("lng", waypoint.position!!.longitude)
+                              }
+                              waypointDetails.put("position", position)
+
+                              val output = JSONObject()
+                              output.put("destinationWaypoint", waypointDetails)
+
+                              Log.i(TAG, "Current Route Segment Details:\n" + output.toString(2))
+
+                          } catch (e: JSONException) {
+                              Log.e(TAG, "Error creating JSON for waypoint", e)
+                          }
+                      } else {
+                          Log.i(TAG, "getCurrentRouteSegment(): Destination Waypoint is null")
+                      }
+                  } else {
+                      Log.i(TAG, "getCurrentRouteSegment(): RouteSegment is null")
+                  }
+              }
+          }
 
           )
-
-
-//   ChIJx1Owgt9_mQAR0CgMWKKWoKU
-      // Rua Capitão Salomão, 38, Botafogo, Rio de Janeiro
 
     // Add buttons dynamically
     buttonConfigs.forEach { config ->
@@ -241,7 +206,6 @@ class NavViewActivity : AppCompatActivity() {
     val button = Button(this, null, 0, R.style.SmallButton).apply {
       text = config.text
       setOnClickListener {
-//        showToast(config.text)
         config.action()
       }
       layoutParams = LinearLayout.LayoutParams(
