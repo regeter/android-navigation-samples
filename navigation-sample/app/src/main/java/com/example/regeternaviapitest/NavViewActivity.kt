@@ -60,6 +60,15 @@ import androidx.lifecycle.lifecycleScope
 import org.json.JSONObject
 import org.json.JSONException
 
+// ADDED IMPORTS FOR TIMEOUT TEST
+import com.google.common.util.concurrent.FutureCallback
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.JdkFutureAdapters
+import com.google.common.util.concurrent.ListenableFuture
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
+
 
 /**
  * This activity shows a simple Navigation API implementation using a Navigation view and using the
@@ -70,243 +79,259 @@ private const val PLACE_PICKER_REQUEST = 1
 private const val LIFECYCLE_TRIGGER_REQUEST = 2
 
 class NavViewActivity : AppCompatActivity() {
-  companion object {
-    const val INTENT_PLACE_ID = "com.example.regeternaviapitest.PLACE_ID"
-    private val routeCancellationExecutor = Executors.newSingleThreadExecutor()
-  }
-  private lateinit var navView: NavigationView
-  var navigatorScope: InitializedNavScope? = null
-  var pendingNavActions = mutableListOf<InitializedNavRunnable>()
-  private var arrivalListener: Navigator.ArrivalListener? = null
-  private var routeChangedListener: Navigator.RouteChangedListener? = null
-  private var mPendingRoute: ListenableResultFuture<RouteStatus>? = null
-  private lateinit var buttonContainer: LinearLayout
-  private var cancellationJob: Job? = null
-  private val cancellationScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    companion object {
+        const val INTENT_PLACE_ID = "com.example.regeternaviapitest.PLACE_ID"
+        private val routeCancellationExecutor = Executors.newSingleThreadExecutor()
+    }
+    private lateinit var navView: NavigationView
+    var navigatorScope: InitializedNavScope? = null
+    var pendingNavActions = mutableListOf<InitializedNavRunnable>()
+    private var arrivalListener: Navigator.ArrivalListener? = null
+    private var routeChangedListener: Navigator.RouteChangedListener? = null
+    private var mPendingRoute: ListenableResultFuture<RouteStatus>? = null
+    private lateinit var buttonContainer: LinearLayout
+    private var cancellationJob: Job? = null
+    private val cancellationScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-  // Only used to demo the turn-by-turn nav forwarding feature.
-  var navInfoDisplayFragment: Fragment? = null
+    // ADDED FOR TIMEOUT TEST
+    private val timeoutExecutor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
+
+    // Only used to demo the turn-by-turn nav forwarding feature.
+    var navInfoDisplayFragment: Fragment? = null
 
     private val ACTION_DELAY_MS = 50L
 
-  @SuppressLint("MissingPermission") // TODO: requestPermissions(...) in here or earlier
-  override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    setContentView(R.layout.activity_nav_view)
+    @SuppressLint("MissingPermission") // TODO: requestPermissions(...) in here or earlier
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_nav_view)
 
-    navView = findViewById(R.id.navigation_view)
+        navView = findViewById(R.id.navigation_view)
 
-    navView.onCreate(savedInstanceState)
+        navView.onCreate(savedInstanceState)
 
-    val placeIdToNavigate = intent.getStringExtra(INTENT_PLACE_ID)
-    if (!placeIdToNavigate.isNullOrEmpty()) {
-        try {
-            val destination = Waypoint.builder().setPlaceIdString(placeIdToNavigate).build()
-            customNavigate(destination)
-        } catch (e: UnsupportedPlaceIdException) {
-            showToast("Error: Provided Place ID is unsupported.")
-            Log.e(TAG, "Unsupported Place ID from intent: $placeIdToNavigate", e)
-        }
-    }
-
-
-    // Set up the UI that allows the user to control some NavSDK behaviors in the demo app.
-    // These panels set up all the users' selectable options, like whether to show the trip
-    // progress bar, whether to force night mode, etc.
-    CustomizationPanelsDelegate.initializeCustomizationPanels(this)
-    CustomizationPanelsDelegate.setUpNightModeSpinner(this, navView::setForceNightMode)
-
-    // Ensure the screen stays on during nav.
-    window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-
-    // Register some example listeners for navigation events.
-    registerNavigationListeners()
-
-    initializeNavigationApi()
-
-    buttonContainer = findViewById(R.id.button_container)
-
-      // Define button configurations
-      val buttonConfigs = listOf(
-          ButtonConfig("startGuidance") { withNavigatorAsync { navigator.startGuidance() } },
-          ButtonConfig("stopGuidance") { withNavigatorAsync { navigator.stopGuidance() } },
-          ButtonConfig("Simulate Location Berlin") { withNavigatorAsync { navigator.simulator.setUserLocation(LatLng(52.521430, 13.386072)) } },
-          ButtonConfig("Drive: Berlin Pickup Same Side") {
-              customNavigate(
-                  Waypoint.builder().setLatLng(52.520512,13.388421).setPreferSameSideOfRoad(true).build(),
-                  triggerLifecycleActivity = false,
-              )
-          },
-          ButtonConfig("Drive: Berlin Pickup Any Side") {
-              customNavigate(
-                  Waypoint.builder().setLatLng(52.520512,13.388421).setPreferSameSideOfRoad(false).build(),
-                  triggerLifecycleActivity = false,
-              )
-          },
-          ButtonConfig("Drive: Rio (2 Waypoints)") {
-              customNavigate(
-                  Waypoint.builder().setLatLng(-22.9568329275, -43.196852216).setPreferSameSideOfRoad(true).build(),
-                  Waypoint.builder().setPlaceIdString("ChIJx1Owgt9_mQAR0CgMWKKWoKU").setPreferSameSideOfRoad(false)
-                      .build(), // Rua Capitão Salomão, 38, Botafogo, Rio de Janeiro
-              )
-          },
-          ButtonConfig("clearDestinations") { withNavigatorAsync { navigator.clearDestinations() } },
-          ButtonConfig("continueToNextDestination") { withNavigatorAsync { navigator.continueToNextDestination() } },
-          ButtonConfig("showRouteOverview") { withNavigatorAsync { navView.showRouteOverview() } },
-          ButtonConfig("Trigger Lifecycle Only") {
-              startActivity(Intent(this@NavViewActivity, LifecycleTriggerActivity::class.java))
-          },
-          ButtonConfig("getCurrentRouteSegment()") {
-              withNavigatorAsync {
-                  val segment: RouteSegment? = navigator.getCurrentRouteSegment()
-                  if (segment != null) {
-                      val waypoint: Waypoint? = segment.destinationWaypoint
-                      if (waypoint != null) {
-                          try {
-                              val waypointDetails = JSONObject()
-                              waypointDetails.put("title", waypoint.title)
-                              waypointDetails.put("preferSameSideOfRoad", waypoint.preferSameSideOfRoad)
-                              waypointDetails.put("preferredHeading", waypoint.preferredHeading)
-
-                              val position = JSONObject()
-                              if (waypoint.position != null) {
-                                  position.put("lat", waypoint.position!!.latitude)
-                                  position.put("lng", waypoint.position!!.longitude)
-                              }
-                              waypointDetails.put("position", position)
-
-                              val output = JSONObject()
-                              output.put("destinationWaypoint", waypointDetails)
-
-                              Log.i(TAG, "Current Route Segment Details:\n" + output.toString(2))
-
-                          } catch (e: JSONException) {
-                              Log.e(TAG, "Error creating JSON for waypoint", e)
-                          }
-                      } else {
-                          Log.i(TAG, "getCurrentRouteSegment(): Destination Waypoint is null")
-                      }
-                  } else {
-                      Log.i(TAG, "getCurrentRouteSegment(): RouteSegment is null")
-                  }
-              }
-          }
-
-          )
-
-    // Add buttons dynamically
-    buttonConfigs.forEach { config ->
-      addButton(config)
-    }
-
-
-  }
-
-  private fun addButton(config: ButtonConfig) {
-    val button = Button(this, null, 0, R.style.SmallButton).apply {
-      text = config.text
-      setOnClickListener {
-        config.action()
-      }
-      layoutParams = LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.WRAP_CONTENT,
-        LinearLayout.LayoutParams.WRAP_CONTENT
-      ).apply {
-        gravity = Gravity.END
-        setMargins(0, -8, 0, -8)
-      }
-    }
-
-    buttonContainer.addView(button)
-  }
-
-  /**
-   * Runs [block] once map is initialized. Block is ignored if map is never initialized.
-   *
-   * This ensures that calls using the map before the map is initialized gets executed after the map
-   * has been initialized.
-   */
-  private fun withMapAsync(block: InitializedMapScope.() -> Unit) {
-    navView.getMapAsync { map ->
-      object : InitializedMapScope {
-          override val map = map
-        }
-        .block()
-    }
-  }
-
-  /**
-   * Runs [block] once navigator is initialized. Block is ignored if the navigator is never
-   * initialized (error, etc.).
-   *
-   * This ensures that calls using the navigator before the navigator is initialized gets executed
-   * after the navigator has been initialized.
-   */
-  private fun withNavigatorAsync(block: InitializedNavRunnable) {
-    val navigatorScope = navigatorScope
-    if (navigatorScope != null) {
-      navigatorScope.block()
-    } else {
-      pendingNavActions.add(block)
-    }
-  }
-
-  /** Starts the Navigation API, capturing a reference when ready. */
-  private fun initializeNavigationApi() {
-    NavigationApi.getNavigator(
-      this,
-      object : NavigatorListener {
-        override fun onNavigatorReady(navigator: Navigator) {
-          val scope = InitializedNavScope(navigator)
-          navigatorScope = scope
-          pendingNavActions.forEach { block -> scope.block() }
-          pendingNavActions.clear()
-
-          // Disables the guidance notifications and shuts down the app and background service
-          // when the user dismisses/swipes away the app from Android's recent tasks.
-          navigator.setTaskRemovedBehavior(Navigator.TaskRemovedBehavior.QUIT_SERVICE)
-        }
-
-        override fun onError(@NavigationApi.ErrorCode errorCode: Int) {
-          when (errorCode) {
-            NavigationApi.ErrorCode.NOT_AUTHORIZED -> {
-              // Note: If this message is displayed, you may need to check that
-              // your API_KEY is specified correctly in AndroidManifest.xml
-              // and is been enabled to access the Navigation API
-              showToast(
-                "Error loading Navigation API: Your API key is " +
-                  "invalid or not authorized to use Navigation."
-              )
+        val placeIdToNavigate = intent.getStringExtra(INTENT_PLACE_ID)
+        if (!placeIdToNavigate.isNullOrEmpty()) {
+            try {
+                val destination = Waypoint.builder().setPlaceIdString(placeIdToNavigate).build()
+                customNavigate(destination)
+            } catch (e: UnsupportedPlaceIdException) {
+                showToast("Error: Provided Place ID is unsupported.")
+                Log.e(TAG, "Unsupported Place ID from intent: $placeIdToNavigate", e)
             }
-            NavigationApi.ErrorCode.TERMS_NOT_ACCEPTED -> {
-              showToast(
-                "Error loading Navigation API: User did not " +
-                  "accept the Navigation Terms of Use."
-              )
-            }
-            else -> showToast("Error loading Navigation API: $errorCode")
-          }
         }
-      },
-    )
 
-    withMapAsync {
-        CustomizationPanelsDelegate.setUpCameraPerspectiveSpinner(
-          this@NavViewActivity,
-          map::followMyLocation,
-        )
-        // The logic below simply helps keep the UI in tune with the underlying SDK state.
-        CustomizationPanelsDelegate.registerOnCameraFollowLocationCallback(
-          this@NavViewActivity,
-          map,
+
+        // Set up the UI that allows the user to control some NavSDK behaviors in the demo app.
+        // These panels set up all the users' selectable options, like whether to show the trip
+        // progress bar, whether to force night mode, etc.
+        CustomizationPanelsDelegate.initializeCustomizationPanels(this)
+        CustomizationPanelsDelegate.setUpNightModeSpinner(this, navView::setForceNightMode)
+
+        // Ensure the screen stays on during nav.
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+        // Register some example listeners for navigation events.
+        registerNavigationListeners()
+
+        initializeNavigationApi()
+
+        buttonContainer = findViewById(R.id.button_container)
+
+        // Define button configurations
+        val buttonConfigs = listOf(
+            ButtonConfig("startGuidance") { withNavigatorAsync { navigator.startGuidance() } },
+            ButtonConfig("stopGuidance") { withNavigatorAsync { navigator.stopGuidance() } },
+            ButtonConfig("Simulate Location Berlin") { withNavigatorAsync { navigator.simulator.setUserLocation(LatLng(52.521430, 13.386072)) } },
+            ButtonConfig("Drive: Berlin Pickup Same Side") {
+                customNavigate(
+                    Waypoint.builder().setLatLng(52.394959, 13.524066).setPreferSameSideOfRoad(true).build(),
+                    triggerLifecycleActivity = false,
+                )
+            },
+            ButtonConfig("Drive: Berlin Pickup Any Side") {
+                customNavigate(
+                    Waypoint.builder().setLatLng(52.394959, 13.524066).setPreferSameSideOfRoad(false).build(),
+                    triggerLifecycleActivity = false,
+                )
+            },
+
+            ButtonConfig("Drive w/ Timeout 59s") {
+                customNavigateWithTimeout(
+                    Waypoint.builder().setLatLng(52.394959, 13.524066).build(),
+                    timeOut = 59
+                )
+            },
+            ButtonConfig("Drive w/ Timeout 120s") {
+                customNavigateWithTimeout(
+                    Waypoint.builder().setLatLng(52.394959, 13.524066).build(),
+                    timeOut = 120
+                )
+            },
+            ButtonConfig("Drive: Rio (2 Waypoints)") {
+                customNavigate(
+                    Waypoint.builder().setLatLng(-22.9568329275, -43.196852216).setPreferSameSideOfRoad(true).build(),
+                    Waypoint.builder().setPlaceIdString("ChIJx1Owgt9_mQAR0CgMWKKWoKU").setPreferSameSideOfRoad(false)
+                        .build(), // Rua Capitão Salomão, 38, Botafogo, Rio de Janeiro
+                )
+            },
+            ButtonConfig("clearDestinations") { withNavigatorAsync { navigator.clearDestinations() } },
+            ButtonConfig("continueToNextDestination") { withNavigatorAsync { navigator.continueToNextDestination() } },
+            ButtonConfig("showRouteOverview") { withNavigatorAsync { navView.showRouteOverview() } },
+            ButtonConfig("Trigger Lifecycle Only") {
+                startActivity(Intent(this@NavViewActivity, LifecycleTriggerActivity::class.java))
+            },
+            ButtonConfig("getCurrentRouteSegment()") {
+                withNavigatorAsync {
+                    val segment: RouteSegment? = navigator.getCurrentRouteSegment()
+                    if (segment != null) {
+                        val waypoint: Waypoint? = segment.destinationWaypoint
+                        if (waypoint != null) {
+                            try {
+                                val waypointDetails = JSONObject()
+                                waypointDetails.put("title", waypoint.title)
+                                waypointDetails.put("preferSameSideOfRoad", waypoint.preferSameSideOfRoad)
+                                waypointDetails.put("preferredHeading", waypoint.preferredHeading)
+
+                                val position = JSONObject()
+                                if (waypoint.position != null) {
+                                    position.put("lat", waypoint.position!!.latitude)
+                                    position.put("lng", waypoint.position!!.longitude)
+                                }
+                                waypointDetails.put("position", position)
+
+                                val output = JSONObject()
+                                output.put("destinationWaypoint", waypointDetails)
+
+                                Log.i(TAG, "Current Route Segment Details:\n" + output.toString(2))
+
+                            } catch (e: JSONException) {
+                                Log.e(TAG, "Error creating JSON for waypoint", e)
+                            }
+                        } else {
+                            Log.i(TAG, "getCurrentRouteSegment(): Destination Waypoint is null")
+                        }
+                    } else {
+                        Log.i(TAG, "getCurrentRouteSegment(): RouteSegment is null")
+                    }
+                }
+            }
+
         )
 
-        CustomizationPanelsDelegate.registerOnNavigationUiChangedListener(
-          this@NavViewActivity,
-          navView::addOnNavigationUiChangedListener,
-        )
+        // Add buttons dynamically
+        buttonConfigs.forEach { config ->
+            addButton(config)
+        }
+
+
     }
-  }
+
+    private fun addButton(config: ButtonConfig) {
+        val button = Button(this, null, 0, R.style.SmallButton).apply {
+            text = config.text
+            setOnClickListener {
+                config.action()
+            }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                gravity = Gravity.END
+                setMargins(0, -8, 0, -8)
+            }
+        }
+
+        buttonContainer.addView(button)
+    }
+
+    /**
+     * Runs [block] once map is initialized. Block is ignored if map is never initialized.
+     *
+     * This ensures that calls using the map before the map is initialized gets executed after the map
+     * has been initialized.
+     */
+    private fun withMapAsync(block: InitializedMapScope.() -> Unit) {
+        navView.getMapAsync { map ->
+            object : InitializedMapScope {
+                override val map = map
+            }
+                .block()
+        }
+    }
+
+    /**
+     * Runs [block] once navigator is initialized. Block is ignored if the navigator is never
+     * initialized (error, etc.).
+     *
+     * This ensures that calls using the navigator before the navigator is initialized gets executed
+     * after the navigator has been initialized.
+     */
+    private fun withNavigatorAsync(block: InitializedNavRunnable) {
+        val navigatorScope = navigatorScope
+        if (navigatorScope != null) {
+            navigatorScope.block()
+        } else {
+            pendingNavActions.add(block)
+        }
+    }
+
+    /** Starts the Navigation API, capturing a reference when ready. */
+    private fun initializeNavigationApi() {
+        NavigationApi.getNavigator(
+            this,
+            object : NavigatorListener {
+                override fun onNavigatorReady(navigator: Navigator) {
+                    val scope = InitializedNavScope(navigator)
+                    navigatorScope = scope
+                    pendingNavActions.forEach { block -> scope.block() }
+                    pendingNavActions.clear()
+
+                    // Disables the guidance notifications and shuts down the app and background service
+                    // when the user dismisses/swipes away the app from Android's recent tasks.
+                    navigator.setTaskRemovedBehavior(Navigator.TaskRemovedBehavior.QUIT_SERVICE)
+                }
+
+                override fun onError(@NavigationApi.ErrorCode errorCode: Int) {
+                    when (errorCode) {
+                        NavigationApi.ErrorCode.NOT_AUTHORIZED -> {
+                            // Note: If this message is displayed, you may need to check that
+                            // your API_KEY is specified correctly in AndroidManifest.xml
+                            // and is been enabled to access the Navigation API
+                            showToast(
+                                "Error loading Navigation API: Your API key is " +
+                                        "invalid or not authorized to use Navigation."
+                            )
+                        }
+                        NavigationApi.ErrorCode.TERMS_NOT_ACCEPTED -> {
+                            showToast(
+                                "Error loading Navigation API: User did not " +
+                                        "accept the Navigation Terms of Use."
+                            )
+                        }
+                        else -> showToast("Error loading Navigation API: $errorCode")
+                    }
+                }
+            },
+        )
+
+        withMapAsync {
+            CustomizationPanelsDelegate.setUpCameraPerspectiveSpinner(
+                this@NavViewActivity,
+                map::followMyLocation,
+            )
+            // The logic below simply helps keep the UI in tune with the underlying SDK state.
+            CustomizationPanelsDelegate.registerOnCameraFollowLocationCallback(
+                this@NavViewActivity,
+                map,
+            )
+
+            CustomizationPanelsDelegate.registerOnNavigationUiChangedListener(
+                this@NavViewActivity,
+                navView::addOnNavigationUiChangedListener,
+            )
+        }
+    }
 
     /**
      * Registers a number of example event listeners that show an on screen message when certain
@@ -341,62 +366,67 @@ class NavViewActivity : AppCompatActivity() {
         }
     }
 
-  /**
-   * Requests directions from the user's current location to a specific place (provided by the
-   * Google Places API).
-   */
-  private fun navigateToPlace(place: Place) {
-    val waypoint: Waypoint? =
-      if (place.types?.contains(Place.Type.GEOCODE) == true) {
-        // An example of setting a destination via Lat-Lng.
-        // Note: Setting LatLng destinations can result in poor routing quality/ETA calculation.
-        // Wherever possible you should use a Place ID to describe the destination accurately.
-          showToast("destination via Lat-Lng")
-        place.latLng?.let { Waypoint.builder().setLatLng(it.latitude, it.longitude).build() }
-      } else {
-        // Set a destination by using a Place ID (the recommended method)
-        try {
-            showToast(place.id)
-          Waypoint.builder().setPlaceIdString(place.id).build()
-        } catch (e: UnsupportedPlaceIdException) {
-          showToast("Place ID was unsupported.")
-          return
-        }
-      }
+    /**
+     * Requests directions from the user's current location to a specific place (provided by the
+     * Google Places API).
+     */
+    private fun navigateToPlace(place: Place) {
+        val waypoint: Waypoint? =
+            if (place.types?.contains(Place.Type.GEOCODE) == true) {
+                // An example of setting a destination via Lat-Lng.
+                // Note: Setting LatLng destinations can result in poor routing quality/ETA calculation.
+                // Wherever possible you should use a Place ID to describe the destination accurately.
+                showToast("destination via Lat-Lng")
+                place.latLng?.let { Waypoint.builder().setLatLng(it.latitude, it.longitude).build() }
+            } else {
+                // Set a destination by using a Place ID (the recommended method)
+                try {
+                    showToast(place.id)
+                    Waypoint.builder().setPlaceIdString(place.id).build()
+                } catch (e: UnsupportedPlaceIdException) {
+                    showToast("Place ID was unsupported.")
+                    return
+                }
+            }
 
-    withNavigatorAsync {
-      val pendingRoute = navigator.setDestination(waypoint)
+        withNavigatorAsync {
+            val startTime = System.currentTimeMillis()
+            Log.i(TAG, "Calling setDestination with waypoint: $waypoint")
+            val pendingRoute = navigator.setDestination(waypoint)
 
-      // Set an action to perform when a route is determined to the destination
-      pendingRoute?.setOnResultListener { code ->
-        when (code) {
-          RouteStatus.OK -> {
-            // Hide the toolbar to maximize the navigation UI
-            actionBar?.hide()
+            // Set an action to perform when a route is determined to the destination
+            pendingRoute?.setOnResultListener { code ->
+                val duration = System.currentTimeMillis() - startTime
+                Log.i(TAG, "setDestination result: $code, duration: ${duration}ms")
+                when (code) {
+                    RouteStatus.OK -> {
+                        // Hide the toolbar to maximize the navigation UI
+                        actionBar?.hide()
 
-            // Enable voice audio guidance (through the device speaker)
-            navigator.setAudioGuidance(Navigator.AudioGuidance.VOICE_ALERTS_AND_GUIDANCE)
+                        // Enable voice audio guidance (through the device speaker)
+                        navigator.setAudioGuidance(Navigator.AudioGuidance.VOICE_ALERTS_AND_GUIDANCE)
 
-            // Simulate vehicle progress along the route (for demo/debug builds)
+                        // Simulate vehicle progress along the route (for demo/debug builds)
 //            if (BuildConfig.DEBUG) {
 //              navigator.simulator.simulateLocationsAlongExistingRoute(
 //                SimulationOptions().speedMultiplier(5f)
 //              )
 //            }
 
-            // Start turn-by-turn guidance along the current route
-            navigator.startGuidance()
-          }
-          RouteStatus.ROUTE_CANCELED -> showToast("Route guidance cancelled.")
-          RouteStatus.NO_ROUTE_FOUND,
-          RouteStatus.NETWORK_ERROR ->
-            // TODO: Add logic to handle when a route could not be determined
-            showToast("Error starting guidance: $code")
-          else -> showToast("Error starting guidance: $code")
+                        // Start turn-by-turn guidance along the current route
+                        Log.i(TAG, "Starting guidance.")
+                        navigator.startGuidance()
+                    }
+                    RouteStatus.ROUTE_CANCELED -> showToast("Route guidance cancelled.")
+                    RouteStatus.NO_ROUTE_FOUND,
+                    RouteStatus.NETWORK_ERROR ->
+                        // TODO: Add logic to handle when a route could not be determined
+                        showToast("Error starting guidance: $code")
+                    else -> showToast("Error starting guidance: $code")
+                }
+            }
         }
-      }
     }
-  }
 
     private fun customNavigate(
         vararg waypoints: Waypoint,
@@ -414,6 +444,8 @@ class NavViewActivity : AppCompatActivity() {
             val destinations = Lists.newArrayList<Waypoint>()
             destinations.addAll(waypoints)
             withNavigatorAsync {
+                val startTime = System.currentTimeMillis()
+                Log.i(TAG, "Calling setDestinations with waypoints: $destinations")
                 val routeStatusFuture = if (routeToken != null) {
                     Log.d(TAG, "customNavigate: Using CustomRoutesOptions.")
                     navigator.setDestinations(
@@ -427,10 +459,16 @@ class NavViewActivity : AppCompatActivity() {
                     navigator.setDestinations(destinations)
                 }
                 routeStatusFuture?.setOnResultListener { result ->
+                    val duration = System.currentTimeMillis() - startTime
                     result?.let { status ->
-                        Log.d(TAG, "customNavigate Route Status: $status")
-                        if (status == RouteStatus.OK) navigator.startGuidance()
-                    } ?: showToast("customNavigate Route Status is null")
+                        showToast("setDestinations result: $status, duration: ${duration}ms")
+                        if (status == RouteStatus.OK) {
+                            Log.i(TAG, "Starting guidance.")
+                            navigator.startGuidance()
+                        }
+                    } ?: run {
+                        showToast("setDestinations result was null. Duration: ${duration}ms")
+                    }
                 } ?: Log.e(TAG, "customNavigate: routeStatusFuture was null")
             }
         }
@@ -448,165 +486,245 @@ class NavViewActivity : AppCompatActivity() {
         }
     }
 
-  override fun onSaveInstanceState(savedInstanceState: Bundle) {
-    super.onSaveInstanceState(savedInstanceState)
+    private fun customNavigateWithTimeout(vararg waypoints: Waypoint, timeOut: Long) {
+        if (waypoints.isEmpty()) {
+            showToast("Cannot navigate without at least one destination.")
+            Log.e(TAG, "customNavigateWithTimeout called with no waypoints.")
+            return
+        }
 
-    navView.onSaveInstanceState(savedInstanceState)
-  }
+        withNavigatorAsync {
+            val destinations = Lists.newArrayList(*waypoints)
+            val startTime = System.currentTimeMillis()
+            Log.i(TAG, "[Timeout Test] Calling setDestinations with waypoints: $destinations")
+            val routeStatusFuture = navigator.setDestinations(destinations)
 
-  override fun onTrimMemory(level: Int) {
-    super.onTrimMemory(level)
-    navView.onTrimMemory(level)
-  }
+            if (routeStatusFuture == null) {
+                showToast("[Timeout Test] setDestinations returned a null future.")
+                return@withNavigatorAsync
+            }
 
-  override fun onStart() {
-    super.onStart()
-    navView.onStart()
-  }
+            // --- Approach 2 (Recommended by Shawn): Convert ListenableResultFuture ---
+            // This is generally safer as it doesn't rely on internal implementation details.
+            val listenableFuture: ListenableFuture<RouteStatus> =
+                JdkFutureAdapters.listenInPoolThread(routeStatusFuture)
 
-  override fun onResume() {
-    super.onResume()
-    Log.d(TAG, "onResume function")
-    navView.onResume()
-  }
 
-  override fun onPause() {
-    navView.onPause()
-    super.onPause()
-  }
+            /*
+            // --- Approach 1 (Suggested by Yash): Type-check and cast ---
+            // This relies on the internal detail that ListenableResultFuture is a ListenableFuture.
+            if (routeStatusFuture !is ListenableFuture<*>) {
+                Log.e(TAG, "[Timeout Test] routeStatusFuture is not a ListenableFuture instance.")
+                return@withNavigatorAsync
+            }
+            @Suppress("UNCHECKED_CAST")
+            val listenableFuture = routeStatusFuture as ListenableFuture<RouteStatus>
+            */
 
-  override fun onConfigurationChanged(configuration: Configuration) {
-    super.onConfigurationChanged(configuration)
-    navView.onConfigurationChanged(configuration)
-  }
 
-  override fun onStop() {
-    navView.onStop()
-    super.onStop()
-  }
+            // Apply a timeout wrapper.
+            val timedFuture = Futures.withTimeout(
+                listenableFuture,
+                timeOut,
+                TimeUnit.SECONDS,
+                timeoutExecutor
+            )
 
-  override fun onDestroy() {
-    navView.onDestroy()
-    withNavigatorAsync {
-      // Unregister event listeners to avoid memory leaks.
-      if (arrivalListener != null) {
-        navigator.removeArrivalListener(arrivalListener)
-      }
-      if (routeChangedListener != null) {
-        navigator.removeRouteChangedListener(routeChangedListener)
-      }
+            Futures.addCallback(
+                timedFuture,
+                object : FutureCallback<RouteStatus> {
+                    override fun onSuccess(result: RouteStatus?) {
+                        val duration = System.currentTimeMillis() - startTime
+                        showToast("[Timeout Test] onSuccess: Result is '$result' after ${duration}ms.")
+                        if (result == RouteStatus.OK) {
+                            navigator.startGuidance()
+                        }
+                    }
 
-      navigator.simulator?.unsetUserLocation()
-      navigator.cleanup()
+                    override fun onFailure(t: Throwable) {
+                        val duration = System.currentTimeMillis() - startTime
+                        when (t) {
+                            is TimeoutException -> {
+                                // This is the desired outcome for a long-running request
+                                showToast("[Timeout Test] onFailure: Caught client-side TimeoutException after ${duration}ms.",)
+                                // You can cancel the original future to stop the network request
+                                // routeStatusFuture.cancel(true)
+                            }
+                            else -> {
+                                // This will catch other errors, including the underlying NO_ROUTE_FOUND if it happens before our timeout
+                                showToast("[Timeout Test] onFailure: Caught other exception after ${duration}ms. Route Future Failed: ${t.message}\"")
+                            }
+                        }
+                    }
+                },
+                mainExecutor // Use mainExecutor to post results to the main thread
+            )
+        }
     }
 
-    super.onDestroy()
-    routeCancellationExecutor.shutdown()
-    cancellationScope.cancel()
-  }
+    override fun onSaveInstanceState(savedInstanceState: Bundle) {
+        super.onSaveInstanceState(savedInstanceState)
 
-  override fun onCreateOptionsMenu(menu: Menu): Boolean {
-    val inflater = menuInflater
-    inflater.inflate(R.menu.menu_default, menu)
-    return true
-  }
-
-  /** If the Place Picker activity returns a destination, starts navigation to that place. */
-  override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-      super.onActivityResult(requestCode, resultCode, data)
-      if (requestCode == PLACE_PICKER_REQUEST) {
-          if (resultCode == Activity.RESULT_OK && data != null) {
-              try {
-                  val place: Place = PlacePickerActivity.getPlace(data)
-                  navigateToPlace(place)
-              } catch (e: Exception) { Log.e(TAG, "onActivityResult: Error getting Place", e) }
-          } else if (resultCode == Activity.RESULT_CANCELED && data != null) {
-              val customError = PlacePickerActivity.getProgrammaticError(data)
-              Log.w(TAG, "PlacePicker: ${customError ?: data.getParcelableExtra<Status>("STATUS")?.statusMessage ?: "Cancelled"}")
-          }
-      } else if (requestCode == LIFECYCLE_TRIGGER_REQUEST) {
-          Log.d(TAG, "Returned from LifecycleTriggerActivity. Result: $resultCode")
-          // The navigation action is handled by the Handler.post in customNavigate
-      }
-  }
-
-  /**
-   * Uses the Google Places API Place Picker to choose a destination to navigate to.
-   *
-   * This method is referenced by the "Set Destination" item in menu_default.xml
-   */
-  fun showPlacePickerForDestination(v: MenuItem?): Boolean {
-    try {
-      startActivityForResult(Intent(this, PlacePickerActivity::class.java), PLACE_PICKER_REQUEST)
-    } catch (e: Exception) {
-      showToast(
-        "Could not display Place Picker. Check your API key has the Google" + "Places API enabled."
-      )
-      Log.e(TAG, Log.getStackTraceString(e))
+        navView.onSaveInstanceState(savedInstanceState)
     }
-    return true
-  }
 
-  /**
-   * Switches the visibility of the UI of the customization panels and the toggle buttons.
-   *
-   * This method is referenced by the "Switch Customizations UI On/Off" item in menu_default.xml.
-   */
-  fun switchCustomizationUIVisibility(unused: MenuItem?) {
-    CustomizationPanelsDelegate.switchCustomizationUiVisibility(this)
-  }
-
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  //
-  // OnClick listeners for various buttons in the customization panels.
-  //
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  /** Toggles whether the Navigation UI is enabled. */
-  fun toggleNavigationUiEnabled(unused: View?) {
-    CustomizationPanelsDelegate.toggleNavigationUiEnabled(this, navView::setNavigationUiEnabled)
-  }
-
-  /** Toggles navigation forwarding (e.g. for 2-wheeler projection). */
-  fun toggleNavFwding(unused: View?) {
-    withNavigatorAsync {
-      navInfoDisplayFragment =
-        CustomizationPanelsDelegate.toggleNavForwarding(
-          this@NavViewActivity,
-          navigator,
-          navInfoDisplayFragment,
-        )
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        navView.onTrimMemory(level)
     }
-  }
 
-  /** Moves the position of the camera to hover over Melbourne. */
-  fun moveCameraToMelbourne(unused: View?) {
-    withMapAsync { CustomizationPanelsDelegate.moveCameraToMelbourne(this@NavViewActivity, map) }
-  }
-
-  /** Toggles whether the location marker is enabled. */
-  fun toggleSetMyLocationEnabled(unused: View?) {
-    withMapAsync {
-      CustomizationPanelsDelegate.toggleSetMyLocationEnabled(this@NavViewActivity, map)
+    override fun onStart() {
+        super.onStart()
+        navView.onStart()
     }
-  }
 
-  /** Toggles the visibility of the Trip Progress Bar UI. This is an EXPERIMENTAL FEATURE. */
-  fun toggleTripProgressBarUi(unused: View?) {
-    CustomizationPanelsDelegate.toggleTripProgressBarUI(this, navView::setTripProgressBarEnabled)
-  }
-
-  /** Logs some debug information to the logcat from the Navigator, upon user request. */
-  fun logDebugInfo(unused: View?) {
-    withNavigatorAsync {
-      navigator.logDebugInfo()
-      showToast("Check the logcat for some information about your trip!")
+    override fun onResume() {
+        super.onResume()
+        Log.d(TAG, "onResume function")
+        navView.onResume()
     }
-  }
 
-  private fun showToast(errorMessage: String) {
-    Toast.makeText(this@NavViewActivity, errorMessage, Toast.LENGTH_LONG).show()
-      Log.i("MyTag", errorMessage);
-  }
+    override fun onPause() {
+        navView.onPause()
+        super.onPause()
+    }
+
+
+
+    override fun onConfigurationChanged(configuration: Configuration) {
+        super.onConfigurationChanged(configuration)
+        navView.onConfigurationChanged(configuration)
+    }
+
+    override fun onStop() {
+        navView.onStop()
+        super.onStop()
+    }
+
+    override fun onDestroy() {
+        navView.onDestroy()
+        withNavigatorAsync {
+            // Unregister event listeners to avoid memory leaks.
+            if (arrivalListener != null) {
+                navigator.removeArrivalListener(arrivalListener)
+            }
+            if (routeChangedListener != null) {
+                navigator.removeRouteChangedListener(routeChangedListener)
+            }
+
+            navigator.simulator?.unsetUserLocation()
+            navigator.cleanup()
+        }
+
+        super.onDestroy()
+        routeCancellationExecutor.shutdown()
+        // ADDED SHUTDOWN FOR TIMEOUT TEST EXECUTOR
+        timeoutExecutor.shutdown()
+        cancellationScope.cancel()
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        val inflater = menuInflater
+        inflater.inflate(R.menu.menu_default, menu)
+        return true
+    }
+
+    /** If the Place Picker activity returns a destination, starts navigation to that place. */
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == PLACE_PICKER_REQUEST) {
+            if (resultCode == Activity.RESULT_OK && data != null) {
+                try {
+                    val place: Place = PlacePickerActivity.getPlace(data)
+                    navigateToPlace(place)
+                } catch (e: Exception) { Log.e(TAG, "onActivityResult: Error getting Place", e) }
+            } else if (resultCode == Activity.RESULT_CANCELED && data != null) {
+                val customError = PlacePickerActivity.getProgrammaticError(data)
+                Log.w(TAG, "PlacePicker: ${customError ?: data.getParcelableExtra<Status>("STATUS")?.statusMessage ?: "Cancelled"}")
+            }
+        } else if (requestCode == LIFECYCLE_TRIGGER_REQUEST) {
+            Log.d(TAG, "Returned from LifecycleTriggerActivity. Result: $resultCode")
+            // The navigation action is handled by the Handler.post in customNavigate
+        }
+    }
+
+    /**
+     * Uses the Google Places API Place Picker to choose a destination to navigate to.
+     *
+     * This method is referenced by the "Set Destination" item in menu_default.xml
+     */
+    fun showPlacePickerForDestination(v: MenuItem?): Boolean {
+        try {
+            startActivityForResult(Intent(this, PlacePickerActivity::class.java), PLACE_PICKER_REQUEST)
+        } catch (e: Exception) {
+            showToast(
+                "Could not display Place Picker. Check your API key has the Google" + "Places API enabled."
+            )
+            Log.e(TAG, Log.getStackTraceString(e))
+        }
+        return true
+    }
+
+    /**
+     * Switches the visibility of the UI of the customization panels and the toggle buttons.
+     *
+     * This method is referenced by the "Switch Customizations UI On/Off" item in menu_default.xml.
+     */
+    fun switchCustomizationUIVisibility(unused: MenuItem?) {
+        CustomizationPanelsDelegate.switchCustomizationUiVisibility(this)
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    //
+    // OnClick listeners for various buttons in the customization panels.
+    //
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    /** Toggles whether the Navigation UI is enabled. */
+    fun toggleNavigationUiEnabled(unused: View?) {
+        CustomizationPanelsDelegate.toggleNavigationUiEnabled(this, navView::setNavigationUiEnabled)
+    }
+
+    /** Toggles navigation forwarding (e.g. for 2-wheeler projection). */
+    fun toggleNavFwding(unused: View?) {
+        withNavigatorAsync {
+            navInfoDisplayFragment =
+                CustomizationPanelsDelegate.toggleNavForwarding(
+                    this@NavViewActivity,
+                    navigator,
+                    navInfoDisplayFragment,
+                )
+        }
+    }
+
+    /** Moves the position of the camera to hover over Melbourne. */
+    fun moveCameraToMelbourne(unused: View?) {
+        withMapAsync { CustomizationPanelsDelegate.moveCameraToMelbourne(this@NavViewActivity, map) }
+    }
+
+    /** Toggles whether the location marker is enabled. */
+    fun toggleSetMyLocationEnabled(unused: View?) {
+        withMapAsync {
+            CustomizationPanelsDelegate.toggleSetMyLocationEnabled(this@NavViewActivity, map)
+        }
+    }
+
+    /** Toggles the visibility of the Trip Progress Bar UI. This is an EXPERIMENTAL FEATURE. */
+    fun toggleTripProgressBarUi(unused: View?) {
+        CustomizationPanelsDelegate.toggleTripProgressBarUI(this, navView::setTripProgressBarEnabled)
+    }
+
+    /** Logs some debug information to the logcat from the Navigator, upon user request. */
+    fun logDebugInfo(unused: View?) {
+        withNavigatorAsync {
+            navigator.logDebugInfo()
+            showToast("Check the logcat for some information about your trip!")
+        }
+    }
+
+    private fun showToast(errorMessage: String) {
+        Toast.makeText(this@NavViewActivity, errorMessage, Toast.LENGTH_LONG).show()
+        Log.i("MyTag", errorMessage);
+    }
 
     fun createMockPlace(placeId: String, lat: Double, lng: Double): Place {
         // Create a custom implementation of Place
