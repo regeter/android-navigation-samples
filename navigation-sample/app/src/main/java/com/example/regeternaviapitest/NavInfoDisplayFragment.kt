@@ -1,18 +1,4 @@
-/*
- * Copyright 2024 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+//java/com/example/regeternaviapitest/NavInfoDisplayFragment.kt
 
 package com.example.regeternaviapitest
 
@@ -48,12 +34,12 @@ class NavInfoDisplayFragment : Fragment() {
   private var showingCurrentStep = true
 
   /** Returns whether the displayed step is the current step rather than a future step preview. */
-  private val isDisplayedStepCurrentStep: Boolean
-    get() =
-      headerNavInfo?.currentStep != null &&
-        headerNavInfo?.currentStep?.stepNumber == selectedStepNumber &&
-        headerNavInfo?.distanceToCurrentStepMeters != null &&
-        headerNavInfo?.timeToCurrentStepSeconds != null
+    private val isDisplayedStepCurrentStep: Boolean
+    get() {
+      val currentStep = headerNavInfo?.currentStep ?: return false
+      val currentStepNumber = currentStep.stepNumber ?: return false
+      return currentStepNumber == selectedStepNumber
+    }
 
   override fun onCreateView(
     inflater: LayoutInflater,
@@ -80,13 +66,16 @@ class NavInfoDisplayFragment : Fragment() {
     // Observe live data for nav info updates.
     val navInfoObserver = Observer { navInfo: NavInfo? ->
       headerNavInfo = navInfo
-      headerNavInfo?.let { showNavInfo(it) }
+      navInfo?.let { showNavInfo(it) } ?: clearHeader()
     }
 
     NavInfoReceivingService.navInfoLiveData.observe(this.viewLifecycleOwner, navInfoObserver)
   }
 
   private fun showNavInfo(navInfo: NavInfo) {
+    val currentStep = navInfo.currentStep // Local variable
+    val remainingSteps = navInfo.remainingSteps // Local variable
+
     if (navInfo.navState == NavState.REROUTING) {
       // Rerouting: Clear the header and indicate that we're rerouting.
       clearHeader()
@@ -96,11 +85,8 @@ class NavInfoDisplayFragment : Fragment() {
       // navigation.
       clearHeader()
       showAwaitingNavigationText()
-    } else if (
-      navInfo.navState == NavState.ENROUTE &&
-        navInfo.currentStep != null &&
-        navInfo.remainingSteps != null
-    ) {
+    } else if (navInfo.navState == NavState.ENROUTE && currentStep != null && remainingSteps != null) {
+      val currentStepNumber = currentStep.stepNumber ?: -1 // Provide a default if null
       // Enroute:
       // Show the latest current step if
       //  1) The last shown step was the current step.
@@ -111,16 +97,17 @@ class NavInfoDisplayFragment : Fragment() {
       val currentStep = navInfo.currentStep
       if (
         navInfo.routeChanged ||
-          selectedStepNumber < 0 ||
-          showingCurrentStep ||
-          !isStepNumberAvailable(navInfo, selectedStepNumber)
+        selectedStepNumber < 0 ||
+        showingCurrentStep ||
+        !isStepNumberAvailable(navInfo, selectedStepNumber)
       ) {
         selectedStepNumber = currentStep?.stepNumber ?: 0
       }
       showSelectedStep(navInfo)
     } else {
       // Error.
-      showToast("Received unknown NavInfo.")
+      showToast("Received unknown NavInfo or missing step data.")
+      clearHeader()
     }
   }
 
@@ -129,40 +116,39 @@ class NavInfoDisplayFragment : Fragment() {
    * steps.
    */
   private fun isStepNumberAvailable(navInfo: NavInfo?, stepNumber: Int): Boolean {
-    val currentStep = navInfo?.currentStep
-    if (navInfo == null || currentStep == null) {
-      return false
-    }
-    val currentStepNumber = currentStep.stepNumber ?: 0
-    if (navInfo.remainingSteps.isEmpty()) {
+    val currentStep = navInfo?.currentStep ?: return false
+    val currentStepNumber = currentStep.stepNumber ?: return false
+    val remainingSteps = navInfo.remainingSteps ?: return stepNumber == currentStepNumber
+
+    if (remainingSteps.isEmpty()) {
       return stepNumber == currentStepNumber
     }
-    val lastAvailableStepNumber = navInfo.remainingSteps[navInfo.remainingSteps.size - 1].stepNumber ?: 0
+    val lastAvailableStepNumber = remainingSteps.lastOrNull()?.stepNumber ?: currentStepNumber
     return stepNumber in currentStepNumber..lastAvailableStepNumber
   }
 
   /** Shows the step selected by the user. This could be a current or remaining step. */
   private fun showSelectedStep(navInfo: NavInfo) {
-    val currentStep = navInfo.currentStep
-    if (currentStep == null || navInfo.remainingSteps == null) {
-      return
+    val currentStep = navInfo.currentStep ?: return
+    val remainingSteps = navInfo.remainingSteps ?: return
+    val currentStepNumber = currentStep.stepNumber ?: return
+
+    var selectedStep: StepInfo = currentStep
+    if (selectedStepNumber != currentStepNumber) {
+      val index = selectedStepNumber - currentStepNumber - 1
+      if (index >= 0 && index < remainingSteps.size) {
+        selectedStep = remainingSteps[index]
+      } else {
+        return
+      }
     }
 
-    val currentStepNumber = currentStep.stepNumber ?: 0
-    var selectedStep: StepInfo? = currentStep
-    if (selectedStepNumber != currentStepNumber) {
-      // If the selected step is not the current step, then it must be a step preview.
-      // Subtract the current step number from the selected step number to get the index
-      // of the selected step in the array of remaining steps.
-      selectedStep = navInfo.remainingSteps[selectedStepNumber - currentStepNumber - 1]
-    }
-    
-    if (selectedStep == null) return
-    
-    showingCurrentStep = selectedStep.stepNumber == currentStepNumber
+    val selectedStepNum = selectedStep.stepNumber ?: currentStepNumber
+    showingCurrentStep = selectedStepNum == currentStepNumber
 
     // Show the full road name, maneuver icon, time and distance to step, and further details.
-    displayHeader.findViewById<TextView>(R.id.tv_primary_text).text = selectedStep.fullRoadName
+    displayHeader.findViewById<TextView>(R.id.tv_primary_text).text =
+      selectedStep.fullRoadName ?: "Unknown road"
     setManeuverIcon(selectedStep)
     setTimeAndDistanceToSelectedStepTexts(selectedStep, navInfo)
     setHeaderDetailTexts(selectedStep, navInfo)
@@ -187,7 +173,10 @@ class NavInfoDisplayFragment : Fragment() {
     displayHeader.findViewById<TextView>(R.id.tv_distance_to_step).text =
       getDistanceFormatted(distanceToStepMeters)
     val timeToStep =
-      getTimeFormatted(timeToStepSeconds).append("to step #").append(selectedStepNumber).toString()
+      getTimeFormatted(timeToStepSeconds)
+        .append("to step #")
+        .append(selectedStepNumber)
+        .toString()
     displayHeader.findViewById<TextView>(R.id.tv_time_to_step).text = timeToStep
   }
 
@@ -196,6 +185,9 @@ class NavInfoDisplayFragment : Fragment() {
    * available.
    */
   private fun setStepButtonsStates(navInfo: NavInfo) {
+    val currentStep = navInfo.currentStep ?: return
+    val currentStepNumber = currentStep.stepNumber ?: return
+
     displayHeader.findViewById<View>(R.id.btn_next_step).isEnabled = canShowNextStep(navInfo)
     displayHeader.findViewById<View>(R.id.btn_prev_step).isEnabled =
       selectedStepNumber > (navInfo.currentStep?.stepNumber ?: 0)
@@ -208,44 +200,33 @@ class NavInfoDisplayFragment : Fragment() {
 
   /** Displays the current step when the current step button is pressed. */
   private fun showCurrentStep(navInfo: NavInfo) {
-    val currentStep = navInfo.currentStep
-    if (currentStep == null || navInfo.remainingSteps.isEmpty()) {
-      return
-    }
-
-    selectedStepNumber = currentStep.stepNumber ?: 0
+    val currentStep = navInfo.currentStep ?: return
+    selectedStepNumber = currentStep.stepNumber ?: -1
     showSelectedStep(navInfo)
   }
 
   /** Returns whether the next step is available. */
   private fun canShowNextStep(navInfo: NavInfo): Boolean {
-    val nextSteps = navInfo.remainingSteps
-    if (nextSteps == null || nextSteps.isEmpty()) {
-      return false
-    }
-
-    val lastAvailableStepNumber = nextSteps[nextSteps.size - 1].stepNumber ?: 0
+    val nextSteps = navInfo.remainingSteps ?: return false
+    if (nextSteps.isEmpty()) return false
+    val lastAvailableStepNumber = nextSteps.lastOrNull()?.stepNumber ?: return false
     return selectedStepNumber < lastAvailableStepNumber
   }
 
   /** Displays the next step when the next step button is pressed. */
   private fun showNextStep(navInfo: NavInfo) {
-    if (
-      navInfo.remainingSteps == null ||
-        navInfo.remainingSteps?.isEmpty() == true ||
-        selectedStepNumber < 0 ||
-        !canShowNextStep(navInfo)
-    ) {
+    if (!canShowNextStep(navInfo)) {
       return
     }
-
     selectedStepNumber++
     showSelectedStep(navInfo)
   }
 
   /** Displays the previous step when the previous step button is pressed. */
   private fun showPrevStep(navInfo: NavInfo) {
-    if (navInfo.remainingSteps?.isEmpty() == true || selectedStepNumber <= 0) {
+    val currentStep = navInfo.currentStep ?: return
+    val currentStepNumber = currentStep.stepNumber ?: return
+    if (selectedStepNumber <= currentStepNumber) {
       return
     }
     selectedStepNumber--
@@ -257,7 +238,9 @@ class NavInfoDisplayFragment : Fragment() {
     displayHeader
       .findViewById<ImageView>(R.id.iv_maneuver_icon)
       .setImageDrawable(
-        requireActivity().resources.getDrawable(ManeuverUtils.getManeuverIconResId(stepInfo))
+        requireActivity()
+          .resources
+          .getDrawable(ManeuverUtils.getManeuverIconResId(stepInfo), requireActivity().theme)
       )
   }
 
@@ -268,21 +251,20 @@ class NavInfoDisplayFragment : Fragment() {
    * @param distanceMeters the distance in meters.
    * @return the distance in the format of "mi" or "ft".
    */
-  private fun getDistanceFormatted(distanceMeters: Int): String {
+  private fun getDistanceFormatted(distanceMeters: Int?): String {
     // Distance can be negative so set the min distance to 0.
     // Only show the tenths place digit if the distance is less than 10 miles.
     // Only show feet if the distance is less than 0.25 miles.
-    val remainingFeet = (distanceMeters * FEET_PER_METER).coerceAtLeast(0.0).toInt()
+    val meters = distanceMeters ?: 0
+    val remainingFeet = (meters * FEET_PER_METER).coerceAtLeast(0.0).toInt()
     val remainingMiles = remainingFeet.toDouble() / FEET_PER_MILE
-    val distance: String =
-      if (remainingMiles >= MIN_MILES_TO_SHOW_INTEGER) {
-        remainingMiles.roundToInt().toString() + " mi"
-      } else if (remainingMiles >= 0.25) {
-        DecimalFormat("0.0").format(remainingMiles) + " mi"
-      } else {
-        "$remainingFeet ft"
-      }
-    return distance
+    return if (remainingMiles >= MIN_MILES_TO_SHOW_INTEGER) {
+      remainingMiles.roundToInt().toString() + " mi"
+    } else if (remainingMiles >= 0.25) {
+      DecimalFormat("0.0").format(remainingMiles) + " mi"
+    } else {
+      "$remainingFeet ft"
+    }
   }
 
   /**
@@ -292,15 +274,16 @@ class NavInfoDisplayFragment : Fragment() {
    * @param timeSeconds the time in seconds
    * @return the time in the format of "hr min sec".
    */
-  private fun getTimeFormatted(timeSeconds: Int): StringBuilder {
-    val remainingSeconds = timeSeconds.coerceAtLeast(0)
+  private fun getTimeFormatted(timeSeconds: Int?): StringBuilder {
+    val seconds = timeSeconds ?: 0
+    val remainingSeconds = seconds.coerceAtLeast(0)
     val remainingHours = remainingSeconds / 3600
     val remainingMinutesRounded = (remainingSeconds % 3600.0 / 60).roundToInt()
     val timeBuilder = StringBuilder()
     if (remainingHours > 0) {
       timeBuilder.append(remainingHours).append(" hr ")
     }
-    if (remainingMinutesRounded > 0 && timeSeconds >= 60) {
+    if (remainingMinutesRounded > 0 && seconds >= 60) {
       timeBuilder.append(remainingMinutesRounded).append(" min ")
     }
     if (remainingSeconds < 60) {
@@ -312,7 +295,7 @@ class NavInfoDisplayFragment : Fragment() {
   /** Shows detailed navigation information. */
   private fun setHeaderDetailTexts(stepInfo: StepInfo, navInfo: NavInfo) {
     displayHeader.findViewById<TextView>(R.id.tv_full_instruction).text =
-      stepInfo.fullInstructionText
+      stepInfo.fullInstructionText ?: ""
     displayHeader.findViewById<TextView>(R.id.tv_timestamp).text =
       timestampFormat.format(System.currentTimeMillis())
     displayHeader.findViewById<TextView>(R.id.tv_roundabout_turn_number).text =
@@ -343,13 +326,14 @@ class NavInfoDisplayFragment : Fragment() {
 
   /** Shows whether the step is in left-hand-traffic or right-hand-traffic. */
   private fun setDrivingSideText(stepInfo: StepInfo) {
-    if (!mDrivingSideStrings.containsKey(stepInfo.drivingSide)) {
-      val error = "Error! DrivingSide not found: " + stepInfo.drivingSide
+    val drivingSide = stepInfo.drivingSide
+    if (!mDrivingSideStrings.containsKey(drivingSide)) {
+      val error = "Error! DrivingSide not found: " + drivingSide
       showToast(error)
       Log.e(TAG, error)
     } else {
       displayHeader.findViewById<TextView>(R.id.tv_driving_side).text =
-        mDrivingSideStrings[stepInfo.drivingSide]
+        mDrivingSideStrings[drivingSide]
     }
   }
 

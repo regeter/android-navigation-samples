@@ -1,18 +1,4 @@
-/*
- * Copyright 2024 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// app/src/main/java/com/example/regeternaviapitest/CustomizationPanelsDelegate.kt
 
 package com.example.regeternaviapitest
 
@@ -37,6 +23,7 @@ import com.google.android.libraries.navigation.ForceNightMode
 import com.google.android.libraries.navigation.Navigator
 import com.google.android.libraries.navigation.OnNavigationUiChangedListener
 import com.google.android.libraries.navigation.SupportNavigationFragment
+import com.google.android.libraries.navigation.TimeAndDistance
 import com.google.common.base.MoreObjects
 
 /**
@@ -99,7 +86,7 @@ internal object CustomizationPanelsDelegate {
   }
 
   /** Switches the visibility of the UI of the customization panels and the toggle buttons. */
-fun switchCustomizationUiVisibility(activity: Activity) {
+  fun switchCustomizationUiVisibility(activity: Activity) {
     val toggleButtons = activity.findViewById<View>(R.id.control_toggles_container)
     val panelsWrapper = activity.findViewById<View>(R.id.control_panels_scroll)
     val customButtonContainer = activity.findViewById<View>(R.id.button_container)
@@ -110,7 +97,7 @@ fun switchCustomizationUiVisibility(activity: Activity) {
     toggleButtons?.visibility = visibility
     panelsWrapper?.visibility = visibility
     customButtonContainer?.visibility = visibility
-}
+  }
 
   /**
    * Sets up the data for the night mode spinner.
@@ -129,7 +116,7 @@ fun switchCustomizationUiVisibility(activity: Activity) {
     nightModeSpinner.adapter = nightModeAdapter
     nightModeSpinner.onItemSelectedListener =
       object : AdapterView.OnItemSelectedListener {
-        override fun onItemSelected(parent: AdapterView<*>?, view: View, position: Int, id: Long) {
+        override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
           when (position) {
             0 -> {}
             1 -> onNightModeOptionSelected(ForceNightMode.AUTO)
@@ -173,7 +160,7 @@ fun switchCustomizationUiVisibility(activity: Activity) {
         override var lastSetNonZeroPosition = 1
           private set
 
-        override fun onItemSelected(parent: AdapterView<*>?, view: View, position: Int, id: Long) {
+        override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
           when (position) {
             0 -> {}
             1 -> {
@@ -283,10 +270,11 @@ fun switchCustomizationUiVisibility(activity: Activity) {
           .add("List<LatLng> for segment", segment.latLngs)
           .toString()
       Log.i(TAG, stringifiedCurrentRouteSegment)
-    }
+    } ?: Log.i(TAG, "currentRouteSegment is null")
 
+    // Assuming traveledRoute is not nullable, or handle appropriately
     val stringifiedTraveledRoute =
-      MoreObjects.toStringHelper(traveledRoute)
+      MoreObjects.toStringHelper("traveledRoute")
         .add("List<LatLng> already traveled", traveledRoute)
         .toString()
     Log.i(TAG, stringifiedTraveledRoute)
@@ -299,7 +287,7 @@ fun switchCustomizationUiVisibility(activity: Activity) {
           .add("Seconds", timeAndDistance.seconds)
           .toString()
       Log.i(TAG, stringifiedCurrentTimeAndDistance)
-    }
+    } ?: Log.i(TAG, "currentTimeAndDistance is null")
   }
 
   ///////////////////////////////////////////////////////////////////////////////////////
@@ -334,13 +322,8 @@ fun switchCustomizationUiVisibility(activity: Activity) {
             // displayed.
             val listener =
               cameraPerspectiveSpinner.onItemSelectedListener
-                as OnCameraPerspectiveSelectedListener?
-            val currentCameraPerspective =
-              if (listener?.lastSetNonZeroPosition == null) {
-                1 // The default camera perspective is TILTED.
-              } else {
-                listener.lastSetNonZeroPosition
-              }
+                      as OnCameraPerspectiveSelectedListener?
+            val currentCameraPerspective = listener?.lastSetNonZeroPosition ?: 1
             // All we want to do is to update the spinner with the last-set perspective.
             // We don't actually want to trigger the listener itself.
             cameraPerspectiveSpinner.onItemSelectedListener = null
