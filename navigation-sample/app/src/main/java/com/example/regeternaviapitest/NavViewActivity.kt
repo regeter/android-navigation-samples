@@ -1,18 +1,4 @@
-/*
- * Copyright 2024 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+//java/com/example/regeternaviapitest/NavViewActivity.kt
 
 package com.example.regeternaviapitest
 
@@ -51,6 +37,7 @@ import com.google.android.libraries.navigation.RouteSegment
 import com.google.android.libraries.navigation.Waypoint
 import com.google.android.libraries.navigation.Waypoint.UnsupportedPlaceIdException
 import com.google.android.libraries.places.api.model.Place
+import org.chromium.net.CronetEngine
 import com.google.common.collect.Lists
 import kotlinx.coroutines.*
 import java.util.concurrent.Executors
@@ -342,7 +329,7 @@ class NavViewActivity : AppCompatActivity() {
             arrivalListener =
                 Navigator.ArrivalListener { waypoint ->
                     val waypointName =
-                        waypoint?.waypoint ?: waypoint.toString() ?: "Unknown Waypoint"
+                        waypoint?.waypoint ?: waypoint.toString()
                     val message = "User has arrived at destination: $waypointName"
                     showToast(message)
                     val currRouteSegment = navigator.currentRouteSegment
@@ -444,6 +431,16 @@ class NavViewActivity : AppCompatActivity() {
             val destinations = Lists.newArrayList<Waypoint>()
             destinations.addAll(waypoints)
             withNavigatorAsync {
+
+                try {
+                    val cronetEngine = CronetEngine.Builder(this@NavViewActivity).build()
+                    val implementationClass = cronetEngine.javaClass.name
+                    Log.d("CronetCheck", "Cronet implementation class: $implementationClass")
+
+                } catch (e: Exception) {
+                    Log.e("CronetCheck", "Could not check Cronet implementation", e)
+                }
+
                 val startTime = System.currentTimeMillis()
                 Log.i(TAG, "Calling setDestinations with waypoints: $destinations")
                 val routeStatusFuture = if (routeToken != null) {
