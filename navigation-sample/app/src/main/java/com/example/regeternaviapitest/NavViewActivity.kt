@@ -132,13 +132,13 @@ class NavViewActivity : AppCompatActivity() {
             ButtonConfig("Simulate Location Berlin") { withNavigatorAsync { navigator.simulator.setUserLocation(LatLng(52.521430, 13.386072)) } },
             ButtonConfig("Drive: Berlin Pickup Same Side") {
                 customNavigate(
-                    Waypoint.builder().setLatLng(52.394959, 13.524066).setPreferSameSideOfRoad(true).build(),
+                    Waypoint.builder().setLatLng(52.520512, 13.388421).setPreferSameSideOfRoad(true).build(),
                     triggerLifecycleActivity = false,
                 )
             },
             ButtonConfig("Drive: Berlin Pickup Any Side") {
                 customNavigate(
-                    Waypoint.builder().setLatLng(52.394959, 13.524066).setPreferSameSideOfRoad(false).build(),
+                    Waypoint.builder().setLatLng(52.520512, 13.388421).setPreferSameSideOfRoad(false).build(),
                     triggerLifecycleActivity = false,
                 )
             },

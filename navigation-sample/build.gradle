@@ -22,7 +22,7 @@ buildscript {
         google()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.10.1'
+        classpath 'com.android.tools.build:gradle:8.13.2'
         classpath "com.google.android.libraries.mapsplatform.secrets-gradle-plugin:secrets-gradle-plugin:2.0.1"
 
         // NOTE: Do not place your application dependencies here; they belong
@@ -31,7 +31,7 @@ buildscript {
 }
 
 plugins {
-    id 'org.jetbrains.kotlin.android' version '2.1.0' apply false
+    id 'org.jetbrains.kotlin.android' version '2.3.0' apply false
 }
 
 allprojects {
@@ -45,10 +45,8 @@ allprojects {
     // your transitive dependencies. This is to ensure there won't be
     // multiple copies of Google Maps SDK in your binary, as navigation SDK
     // already bundles the Google Maps SDK.
-    configurations {
-        implementation {
-            exclude group: 'com.google.android.gms', module: 'play-services-maps'
-        }
+    configurations.all {
+        exclude group: 'com.google.android.gms', module: 'play-services-maps'
     }
 }
 

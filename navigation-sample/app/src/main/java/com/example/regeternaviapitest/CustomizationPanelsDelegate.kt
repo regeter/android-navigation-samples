@@ -19,7 +19,6 @@ import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.GoogleMap.OnCameraFollowLocationCallback
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
-import com.google.android.libraries.navigation.ForceNightMode
 import com.google.android.libraries.navigation.Navigator
 import com.google.android.libraries.navigation.OnNavigationUiChangedListener
 import com.google.android.libraries.navigation.SupportNavigationFragment
@@ -67,16 +66,16 @@ internal object CustomizationPanelsDelegate {
   /** Initializes the toggles that show/hide customization panels when clicked. */
   fun initializeCustomizationPanels(activity: Activity) {
     for ((toggleButtonId, layoutToToggleId) in TOGGLE_BUTTON_TO_LAYOUT_MAP) {
-      val toggleButton = activity.findViewById<Button>(toggleButtonId)
+      val toggleButton = activity.findViewById<View>(toggleButtonId) as Button
       toggleButton.setOnClickListener {
-        val layoutToToggle = activity.findViewById<LinearLayout>(layoutToToggleId)
+        val layoutToToggle = activity.findViewById<View>(layoutToToggleId) as LinearLayout
         val currentlyShown = layoutToToggle.visibility == View.VISIBLE
         layoutToToggle.visibility = if (currentlyShown) View.GONE else View.VISIBLE
 
         // Unilaterally hide all other layouts, since one may be lingering from
         // an earlier toggle press.
         val allOtherPanels =
-          TOGGLE_BUTTON_TO_LAYOUT_MAP.values.toSet() subtract setOf(layoutToToggleId)
+          TOGGLE_BUTTON_TO_LAYOUT_MAP.values.filter { it != layoutToToggleId }
 
         for (resourceIdToHide in allOtherPanels) {
           activity.findViewById<View>(resourceIdToHide).visibility = View.GONE
@@ -119,10 +118,10 @@ internal object CustomizationPanelsDelegate {
         override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
           when (position) {
             0 -> {}
-            1 -> onNightModeOptionSelected(ForceNightMode.AUTO)
-            2 -> onNightModeOptionSelected(ForceNightMode.FORCE_DAY)
-            3 -> onNightModeOptionSelected(ForceNightMode.FORCE_NIGHT)
-            else -> onNightModeOptionSelected(ForceNightMode.FORCE_NIGHT)
+            1 -> onNightModeOptionSelected(0 /* ForceNightMode.AUTO */)
+            2 -> onNightModeOptionSelected(1 /* ForceNightMode.FORCE_DAY */)
+            3 -> onNightModeOptionSelected(2 /* ForceNightMode.FORCE_NIGHT */)
+            else -> onNightModeOptionSelected(2 /* ForceNightMode.FORCE_NIGHT */)
           }
         }
 
@@ -281,7 +280,7 @@ internal object CustomizationPanelsDelegate {
 
     currentTimeAndDistance?.let { timeAndDistance ->
       val stringifiedCurrentTimeAndDistance =
-        MoreObjects.toStringHelper(timeAndDistance)
+        MoreObjects.toStringHelper("TimeAndDistance")
           .add("Delay severity", timeAndDistance.delaySeverity)
           .add("Meters", timeAndDistance.meters)
           .add("Seconds", timeAndDistance.seconds)
