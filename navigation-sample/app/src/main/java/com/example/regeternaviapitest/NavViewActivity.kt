@@ -356,7 +356,7 @@ class NavViewActivity : AppCompatActivity() {
                         waypoint?.waypoint ?: waypoint.toString() ?: "Unknown Waypoint"
                     val message = "User has arrived at destination: $waypointName"
                     showToast(message)
-                    val currRouteSegment: RouteSegment = navigator.getCurrentRouteSegment()
+                    val currRouteSegment = navigator.currentRouteSegment
 
                     if (currRouteSegment != null) {
                         val latLngs = currRouteSegment.latLngs

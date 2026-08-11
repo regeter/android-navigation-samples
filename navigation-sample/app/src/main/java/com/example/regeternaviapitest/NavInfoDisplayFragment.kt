@@ -108,13 +108,14 @@ class NavInfoDisplayFragment : Fragment() {
       //  3) If the route has changed since the last message.
       // Otherwise, continue to show whichever step is currently being shown, which may be
       // a step preview.
+      val currentStep = navInfo.currentStep
       if (
         navInfo.routeChanged ||
           selectedStepNumber < 0 ||
           showingCurrentStep ||
           !isStepNumberAvailable(navInfo, selectedStepNumber)
       ) {
-        selectedStepNumber = navInfo.currentStep.stepNumber
+        selectedStepNumber = currentStep?.stepNumber ?: 0
       }
       showSelectedStep(navInfo)
     } else {
@@ -128,31 +129,36 @@ class NavInfoDisplayFragment : Fragment() {
    * steps.
    */
   private fun isStepNumberAvailable(navInfo: NavInfo?, stepNumber: Int): Boolean {
-    if (navInfo == null || navInfo.currentStep == null) {
+    val currentStep = navInfo?.currentStep
+    if (navInfo == null || currentStep == null) {
       return false
     }
-    val currentStepNumber = navInfo.currentStep.stepNumber
+    val currentStepNumber = currentStep.stepNumber ?: 0
     if (navInfo.remainingSteps.isEmpty()) {
       return stepNumber == currentStepNumber
     }
-    val lastAvailableStepNumber = navInfo.remainingSteps[navInfo.remainingSteps.size - 1].stepNumber
+    val lastAvailableStepNumber = navInfo.remainingSteps[navInfo.remainingSteps.size - 1].stepNumber ?: 0
     return stepNumber in currentStepNumber..lastAvailableStepNumber
   }
 
   /** Shows the step selected by the user. This could be a current or remaining step. */
   private fun showSelectedStep(navInfo: NavInfo) {
-    if (navInfo.currentStep == null || navInfo.remainingSteps == null) {
+    val currentStep = navInfo.currentStep
+    if (currentStep == null || navInfo.remainingSteps == null) {
       return
     }
 
-    val currentStepNumber = navInfo.currentStep.stepNumber
-    var selectedStep = navInfo.currentStep
+    val currentStepNumber = currentStep.stepNumber ?: 0
+    var selectedStep: StepInfo? = currentStep
     if (selectedStepNumber != currentStepNumber) {
       // If the selected step is not the current step, then it must be a step preview.
       // Subtract the current step number from the selected step number to get the index
       // of the selected step in the array of remaining steps.
       selectedStep = navInfo.remainingSteps[selectedStepNumber - currentStepNumber - 1]
     }
+    
+    if (selectedStep == null) return
+    
     showingCurrentStep = selectedStep.stepNumber == currentStepNumber
 
     // Show the full road name, maneuver icon, time and distance to step, and further details.
@@ -167,14 +173,14 @@ class NavInfoDisplayFragment : Fragment() {
 
   private fun setTimeAndDistanceToSelectedStepTexts(selectedStep: StepInfo, navInfo: NavInfo) {
     // Get the estimated remaining time and distance to the current step.
-    var distanceToStepMeters = navInfo.distanceToCurrentStepMeters
-    var timeToStepSeconds = navInfo.timeToCurrentStepSeconds
+    var distanceToStepMeters = navInfo.distanceToCurrentStepMeters ?: 0
+    var timeToStepSeconds = navInfo.timeToCurrentStepSeconds ?: 0
     if (!isDisplayedStepCurrentStep) {
       // If the displayed step is a future step preview rather than the current step, show
       // the entire time and distance for the step maneuver rather than the estimated
       // remaining time and distance to the current step.
-      distanceToStepMeters = selectedStep.distanceFromPrevStepMeters
-      timeToStepSeconds = selectedStep.timeFromPrevStepSeconds
+      distanceToStepMeters = selectedStep.distanceFromPrevStepMeters ?: 0
+      timeToStepSeconds = selectedStep.timeFromPrevStepSeconds ?: 0
     }
 
     // Show the time and distance to the selected step.
@@ -192,7 +198,7 @@ class NavInfoDisplayFragment : Fragment() {
   private fun setStepButtonsStates(navInfo: NavInfo) {
     displayHeader.findViewById<View>(R.id.btn_next_step).isEnabled = canShowNextStep(navInfo)
     displayHeader.findViewById<View>(R.id.btn_prev_step).isEnabled =
-      selectedStepNumber > navInfo.currentStep.stepNumber
+      selectedStepNumber > (navInfo.currentStep?.stepNumber ?: 0)
     displayHeader.findViewById<View>(R.id.btn_current_step).isEnabled = !showingCurrentStep
     displayHeader.setBackgroundColor(
       if (showingCurrentStep) CURRENT_STEP_COLOR else STEP_PREVIEW_COLOR
@@ -202,11 +208,12 @@ class NavInfoDisplayFragment : Fragment() {
 
   /** Displays the current step when the current step button is pressed. */
   private fun showCurrentStep(navInfo: NavInfo) {
-    if (navInfo.currentStep == null || navInfo.remainingSteps.isEmpty()) {
+    val currentStep = navInfo.currentStep
+    if (currentStep == null || navInfo.remainingSteps.isEmpty()) {
       return
     }
 
-    selectedStepNumber = navInfo.currentStep.stepNumber
+    selectedStepNumber = currentStep.stepNumber ?: 0
     showSelectedStep(navInfo)
   }
 
@@ -217,7 +224,7 @@ class NavInfoDisplayFragment : Fragment() {
       return false
     }
 
-    val lastAvailableStepNumber = nextSteps[nextSteps.size - 1].stepNumber
+    val lastAvailableStepNumber = nextSteps[nextSteps.size - 1].stepNumber ?: 0
     return selectedStepNumber < lastAvailableStepNumber
   }
 
@@ -309,15 +316,15 @@ class NavInfoDisplayFragment : Fragment() {
     displayHeader.findViewById<TextView>(R.id.tv_timestamp).text =
       timestampFormat.format(System.currentTimeMillis())
     displayHeader.findViewById<TextView>(R.id.tv_roundabout_turn_number).text =
-      stepInfo.roundaboutTurnNumber.toString()
+      stepInfo.roundaboutTurnNumber?.toString() ?: ""
     displayHeader.findViewById<TextView>(R.id.tv_next_destination_eta).text =
-      getTimeFormatted(navInfo.timeToNextDestinationSeconds)
+      getTimeFormatted(navInfo.timeToNextDestinationSeconds ?: 0)
     displayHeader.findViewById<TextView>(R.id.tv_next_destination_remaining_distance).text =
-      getDistanceFormatted(navInfo.distanceToNextDestinationMeters)
+      getDistanceFormatted(navInfo.distanceToNextDestinationMeters ?: 0)
     displayHeader.findViewById<TextView>(R.id.tv_final_destination_eta).text =
-      getTimeFormatted(navInfo.timeToFinalDestinationSeconds)
+      getTimeFormatted(navInfo.timeToFinalDestinationSeconds ?: 0)
     displayHeader.findViewById<TextView>(R.id.tv_final_destination_remaining_distance).text =
-      getDistanceFormatted(navInfo.distanceToFinalDestinationMeters)
+      getDistanceFormatted(navInfo.distanceToFinalDestinationMeters ?: 0)
     setManeuverNameText(stepInfo)
     setDrivingSideText(stepInfo)
   }

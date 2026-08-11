@@ -274,13 +274,13 @@ fun switchCustomizationUiVisibility(activity: Activity) {
   }
 
   fun Navigator.logDebugInfo() {
-    if (currentRouteSegment != null) {
+    currentRouteSegment?.let { segment ->
       val stringifiedCurrentRouteSegment =
         MoreObjects.toStringHelper("RouteSegment")
-          .add("Destination LatLng", currentRouteSegment.destinationLatLng)
-          .add("Destination Waypoint", currentRouteSegment.destinationWaypoint)
-          .add("Traffic Data", currentRouteSegment.trafficData)
-          .add("List<LatLng> for segment", currentRouteSegment.latLngs)
+          .add("Destination LatLng", segment.destinationLatLng)
+          .add("Destination Waypoint", segment.destinationWaypoint)
+          .add("Traffic Data", segment.trafficData)
+          .add("List<LatLng> for segment", segment.latLngs)
           .toString()
       Log.i(TAG, stringifiedCurrentRouteSegment)
     }
@@ -291,12 +291,12 @@ fun switchCustomizationUiVisibility(activity: Activity) {
         .toString()
     Log.i(TAG, stringifiedTraveledRoute)
 
-    if (currentTimeAndDistance != null) {
+    currentTimeAndDistance?.let { timeAndDistance ->
       val stringifiedCurrentTimeAndDistance =
-        MoreObjects.toStringHelper(currentTimeAndDistance)
-          .add("Delay severity", currentTimeAndDistance.delaySeverity)
-          .add("Meters", currentTimeAndDistance.meters)
-          .add("Seconds", currentTimeAndDistance.seconds)
+        MoreObjects.toStringHelper(timeAndDistance)
+          .add("Delay severity", timeAndDistance.delaySeverity)
+          .add("Meters", timeAndDistance.meters)
+          .add("Seconds", timeAndDistance.seconds)
           .toString()
       Log.i(TAG, stringifiedCurrentTimeAndDistance)
     }
