@@ -21,12 +21,12 @@ apply plugin: 'com.google.android.libraries.mapsplatform.secrets-gradle-plugin'
 ext {
     androidxLifecycleVersion = "2.6.2"
     glideVersion = "4.13.2"
-    navSdkVersion = "6.2.0"
+    navSdkVersion = "7.6.1"
 }
 
 android {
     namespace 'com.example.regeternaviapitest'
-    compileSdkVersion 33
+    compileSdkVersion 34
 
     buildFeatures {
         buildConfig true
@@ -34,9 +34,9 @@ android {
 
     defaultConfig {
         applicationId "com.example.regeternaviapitest"
-        // Navigation SDK supports a minimum of SDK 23.
-        minSdkVersion 23
-        targetSdkVersion 33
+        // Navigation SDK supports a minimum of SDK 24.
+        minSdkVersion 24
+        targetSdkVersion 34
         versionCode 1
         versionName "1.0"
         // Set this to the languages you actually use, otherwise you'll include resource strings
@@ -55,7 +55,7 @@ android {
         // If the proguard step takes too long, consider enabling multidex for development work
         // instead.
         all {
-            minifyEnabled true
+            minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
@@ -80,17 +80,25 @@ dependencies {
     // Include the Google Navigation SDK.
     // Note: remember to exclude Google play service Maps SDK from your transitive
     // dependencies to avoid duplicate copies of the Google Maps SDK.
-    api "com.google.android.libraries.navigation:navigation:${navSdkVersion}@aar"
-//    implementation (name: "navigation_dev-6.0.0", ext: "aar")
+    // Temporarily commented out to use Maven version
+//     api "com.google.android.libraries.navigation:navigation:${navSdkVersion}@aar"
+    // implementation (name: "navigation_dev-6.0.0", ext: "aar")
+    api "com.google.android.libraries.navigation:navigation:${navSdkVersion}"
     // Add: android.useDeprecatedNdk=true
     // to local.properties.
-    api "org.chromium.net:cronet-fallback:119.6045.31"
+    api "org.chromium.net:cronet-embedded:143.7445.0"
     // Optional for Cronet users:
     // api "org.chromium.net:cronet-api:69.3497.100"
+
 
     // Add LeakCanary to debugImplementation because LeakCanary should only run
     // in debug builds.
     debugImplementation 'com.squareup.leakcanary:leakcanary-android:2.12'
+
+    // Add datastore dependencies manually since @aar ignores transitive dependencies
+    api "androidx.datastore:datastore:1.2.1"
+    api "androidx.datastore:datastore-core:1.2.1"
+    api "it.unimi.dsi:fastutil:8.5.12"
 
     // And dependencies.
     api "androidx.appcompat:appcompat:1.6.1"
