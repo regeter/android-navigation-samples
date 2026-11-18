@@ -43,4 +43,17 @@
     <string name="trip_progress_bar_prompt">Trip progress\nbar</string>
     <string name="switch_customizations_ui_prompt">Switch Customizations UI On/Off</string>
     <string name="stop_trip_and_show_mapfragment_prompt">Stop trip and show MapFragment</string>
+    <string name="btn_apple_to_fb_stop_label">Apple &gt; FB (RT STOP)</string>
+    <string name="btn_apple_to_fb_via_label">Apple &gt; FB (RT VIA)</string>
+    <string name="btn_apple_to_google_to_fb_stop_label">Apple &gt; Google &gt; FB (RT STOP)</string>
+    <string name="btn_start_nav_text">1. Start Nav / Enable UI</string>
+    <string name="btn_cancel_exit_text">2. Cancel / Exit (Detach)</string>
+    <string name="btn_toggle_speed_text">Phone Speed: Slow (1000ms)</string>
+    <string name="btn_repro_100_text">100% Repro (Instant Detach)</string>
+    <string name="btn_test_workaround_text">Workaround (Safe Detach)</string>
+    <string name="btn_reset_nav_text">Reset NavView</string>
+    <string name="btn_info_text">ℹ Info</string>
+    <string name="btn_repro_guide_text">ℹ Repro</string>
+    <string name="status_ready_text">🟢 NavView Ready (Idle)</string>
+    <string name="status_destroyed_text">🔴 NavView Detached &amp; Destroyed</string>
 </resources>

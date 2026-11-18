@@ -23,7 +23,7 @@ plugins {
 
 android {
     namespace = "com.example.navigationapidemo"
-    compileSdk = 37
+    compileSdk = 35
 
     buildFeatures {
         buildConfig = true
@@ -33,7 +33,7 @@ android {
         applicationId = "com.example.navigationapidemo"
         // Navigation SDK supports a minimum of SDK 24.
         minSdk = 24
-        targetSdk = 37
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
     }
@@ -60,14 +60,14 @@ android {
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
 }
 
 kotlin {
     compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_17)
+        jvmTarget.set(JvmTarget.JVM_11)
     }
 }
 
@@ -75,7 +75,9 @@ dependencies {
     // Include the Google Navigation SDK.
     // Note: remember to exclude Google Play services Maps SDK from your transitive
     // dependencies to avoid duplicate copies of the Google Maps SDK.
-    implementation(libs.google.maps.navigation)
+    implementation(libs.google.maps.navigation) {
+        exclude(group = "com.google.android.gms", module = "play-services-maps")
+    }
 
     // Add: android.useDeprecatedNdk=true
     // to local.properties.
@@ -128,10 +130,10 @@ dependencies {
 
 secrets {
     // To add your Maps API key to this project:
-    // 1. Create a secrets.properties file in the root project directory
+    // 1. Create a local.properties file (or secrets.properties) in the root project directory
     // 2. Add this line, where YOUR_API_KEY is your API key:
     //        MAPS_API_KEY=YOUR_API_KEY
-    propertiesFileName = "secrets.properties"
+    propertiesFileName = "local.properties"
     defaultPropertiesFileName = "local.defaults.properties"
 }
 
